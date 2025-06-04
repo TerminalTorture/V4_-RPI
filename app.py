@@ -9,10 +9,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from api.config_loader import REGISTER_CONFIG # Import the loaded config
-from api.live_data import live_data_api, SensorData, store_data_to_db, add_dynamic_columns # Import add_dynamic_columns
-from api.hist_data import historical_data_api
-from api.modbus_client import read_modbus_data
-from api.extensions import db
+from api.live_data import live_data_api # Import only the blueprint, not the old SQLAlchemy models
+from api.hist_data import historical_data_api  # Updated to use PostgreSQL
+# Removed: from api.modbus_client import read_modbus_data - no longer needed for PostgreSQL-based data
+from api.extensions import db  # SQLAlchemy for user authentication (SQLite), PostgreSQL handled directly in live_data.py
 from datetime import datetime, timedelta, timezone # MODIFIED: timezone import already present, UTC removed as set_timezone will be used
 import logging # Add logging import
 import yaml # Add this import
@@ -22,8 +22,8 @@ from api.timezone_config import set_timezone
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
-# SQLite Database Configuration
-#app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/sensor_data.db'
+# SQLite Database Configuration (used only for user authentication, not sensor data)
+# Sensor data is now stored in PostgreSQL and accessed via mqtt_subscriber.py
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(os.getcwd(), 'instance', 'sensor_data.db') + '?check_same_thread=False'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 logging.getLogger('werkzeug').disabled = True # Consider enabling werkzeug logs for debugging
@@ -41,7 +41,7 @@ login_manager.login_view = 'login'
 
 # Register API Blueprints
 app.register_blueprint(live_data_api, url_prefix='/api')
-app.register_blueprint(historical_data_api, url_prefix='/api')
+app.register_blueprint(historical_data_api, url_prefix='/api')  # Re-enabled with PostgreSQL support
 
 # --- Add API endpoint for register definitions ---
 @app.route('/api/registers/definitions')
@@ -73,67 +73,13 @@ def load_user (user_id):
 # ... (Background task setup)
 collect_sensor_lock = threading.Lock()
 
-# --- Modify collect_sensor_data ---
+# --- Legacy function - sensor data collection now handled by MQTT subscriber ---
 def collect_sensor_data():
-    """Fetch Modbus data and store it, using the config-driven logic."""
-    # Use logging instead of print
-    logging.debug("Attempting to acquire lock for sensor data collection...")
-    if not collect_sensor_lock.acquire(blocking=False):
-        logging.warning("Could not acquire lock, collect_sensor_data already running.")
-        return # Exit if already running
-
-    # --- Add app context here ---
-    with app.app_context():
-        try:
-            #logging.info("Running scheduled task: collect_sensor_data")
-            # read_modbus_data now uses the config internally
-            raw_data = read_modbus_data()
-            if raw_data:
-                # Process and store data (live_data endpoint logic can be reused or called)
-                # For simplicity, directly call store_data_to_db after basic processing
-                # Note: This duplicates some processing from the /live-data endpoint.
-                # Consider refactoring processing logic into a shared function.
-
-                processed_data_for_db = {}
-                timestamp = datetime.now(set_timezone) # MODIFIED: Use application timezone
-
-                for name, raw_value in raw_data.items():
-                    if raw_value is None: continue
-                    reg_info = REGISTER_CONFIG['by_name'].get(name)
-                    if reg_info:
-                        # Apply scaling for storage if needed (assuming stored values are scaled)
-                        scale = reg_info.get('scale')
-                        processed_value = float(raw_value) * float(scale) if scale is not None else raw_value
-
-                        # Check if column exists and store (using lowercase name)
-                        column_name = name.lower()
-                        if hasattr(SensorData, column_name):
-                            try:
-                                processed_data_for_db[column_name] = float(processed_value)
-                            except (ValueError, TypeError):
-                                logging.warning(f"Scheduler: Could not convert {name} value {processed_value} to float for DB.")
-                    else:
-                        logging.warning(f"Scheduler: Unknown variable {name} found in Modbus data.")
-
-                if processed_data_for_db:
-                    store_data_to_db(processed_data_for_db, timestamp) # Pass only data meant for DB columns
-                else:
-                    logging.info("Scheduler: No data processed for DB storage in this cycle.")
-
-            else:
-                logging.error("Scheduler: Failed to read Modbus data.")
-        except Exception as e:
-            logging.error(f"Scheduler: Error in collect_sensor_data: {e}", exc_info=True)
-            # Rollback might be needed here too if an error occurs *during* processing but before store_data_to_db fails
-            try:
-                db.session.rollback()
-                logging.info("Rolled back DB session due to error in collect_sensor_data processing.")
-            except Exception as db_err:
-                logging.error(f"Scheduler: Failed to rollback DB session: {db_err}", exc_info=True)
-        finally:
-            logging.debug("Releasing lock for sensor data collection.")
-            collect_sensor_lock.release() # Release lock even if context push fails (though unlikely)
-
+    """Legacy function - sensor data collection now handled by MQTT subscriber"""
+    # This function is now replaced by the PostgreSQL MQTT subscriber
+    # The web app only reads data from PostgreSQL, it doesn't collect it
+    logging.debug("collect_sensor_data called - data collection now handled by MQTT subscriber")
+    pass
 
 # ... (Scheduler setup remains the same)
 executors = {
@@ -141,38 +87,30 @@ executors = {
 }
 
 def delete_old_data():
-    """Deletes sensor data older than 30 days from the database."""
-    # ... (delete_old_data logic remains the same) ...
-    try:
-        cutoff_date = datetime.now(set_timezone) - timedelta(days=30) # MODIFIED: Use application timezone
-        with app.app_context(): # Ensure app context for db operations
-            deleted_count = SensorData.query.filter(SensorData.timestamp < cutoff_date).delete()
-            db.session.commit()
-            if deleted_count > 0:
-                logging.info(f"Deleted {deleted_count} records older than {cutoff_date}.")
-            else:
-                logging.info("No old records found to delete.")
-    except Exception as e:
-        logging.error(f"Error deleting old data: {e}", exc_info=True)
-        db.session.rollback() # Rollback on error
+    """Legacy function - data cleanup now handled by PostgreSQL MQTT subscriber"""
+    # Data cleanup is now handled by the PostgreSQL subscriber or database maintenance
+    logging.debug("delete_old_data called - data cleanup now handled by PostgreSQL subscriber")
+    pass
 
 
 def start_scheduler():
+    """
+    Background scheduler for web app maintenance tasks.
+    Note: Sensor data collection is now handled by mqtt_subscriber.py
+    """
     scheduler = BackgroundScheduler(executors=executors)
-    # Schedule data collection (e.g., every 5 seconds)
-    scheduler.add_job(collect_sensor_data, 'interval', seconds=5, id='collect_data_job', replace_existing=True)
-    # Schedule old data deletion (e.g., daily at 3 AM)
-    scheduler.add_job(delete_old_data, 'cron', hour=3, id='delete_old_data_job', replace_existing=True)
+    
+    # Note: Data collection and cleanup now handled by PostgreSQL MQTT subscriber
+    # Only add scheduler jobs here if needed for web app maintenance
+    
     scheduler.start()
-    logging.info("Background scheduler started.")
+    logging.info("Background scheduler started (sensor data collection handled by MQTT subscriber).")
 
 
-# --- Create database tables AFTER dynamic columns are added ---
+# --- Create database tables (User table only) ---
 with app.app_context():
-    logging.info("Adding dynamic columns to SensorData model...")
-    add_dynamic_columns() # Ensure columns are defined on the model class
-    logging.info("Initializing database and creating tables...")
-    db.create_all() # Now create tables with dynamic columns
+    logging.info("Initializing SQLite database for user authentication...")
+    db.create_all() # Create User table for authentication
     logging.info("Database tables created (if they didn't exist).")
 
     # Create default admin user if not exists
@@ -283,6 +221,6 @@ def logout():
 if __name__ == '__main__':
     start_scheduler()
     # Use host='0.0.0.0' to make it accessible on the network
-    app.run(debug=True, host='0.0.0.0', port=5000) # Added host and port
+    app.run(debug=True, host='0.0.0.0', port=5001) # Added host and port
 
 

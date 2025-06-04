@@ -18,8 +18,8 @@ from datetime import datetime
 # Load environment variables
 try:
     from dotenv import load_dotenv
-    load_dotenv()
-    print("✅ Environment variables loaded")
+    load_dotenv(override=True)  # Ensure .env values override existing ones
+    print("✅ Environment variables loaded (override enabled)")
 except ImportError:
     print("⚠️ python-dotenv not available")
 

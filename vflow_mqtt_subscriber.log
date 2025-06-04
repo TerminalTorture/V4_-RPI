@@ -1,0 +1,10 @@
+2025-06-04 10:31:31,466 - INFO - PostgreSQL Handler initialized - Host: localhost:5432, Database: vflow_data
+2025-06-04 10:31:31,467 - INFO - VFlow MQTT Subscriber initialized - Broker: 192.168.137.69:1883
+2025-06-04 16:07:49,360 - INFO - PostgreSQL Handler initialized - Host: localhost:5432, Database: vflow_data
+2025-06-04 16:07:49,361 - INFO - VFlow MQTT Subscriber initialized - Broker: 192.168.0.89:1883
+2025-06-04 16:08:34,802 - INFO - PostgreSQL Handler initialized - Host: localhost:5432, Database: vflow_data
+2025-06-04 16:08:34,802 - INFO - VFlow MQTT Subscriber initialized - Broker: 192.168.137.69:1883
+2025-06-04 16:08:36,377 - INFO - PostgreSQL Handler initialized - Host: localhost:5432, Database: vflow_data
+2025-06-04 16:08:36,378 - INFO - VFlow MQTT Subscriber initialized - Broker: 192.168.137.69:1883
+2025-06-04 16:09:31,714 - INFO - PostgreSQL Handler initialized - Host: localhost:5432, Database: vflow_data
+2025-06-04 16:09:31,714 - INFO - VFlow MQTT Subscriber initialized - Broker: 192.168.0.89:1883
