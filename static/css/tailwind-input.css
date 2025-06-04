@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply text-on-background dark:text-gray-200;
+  }
+  
+  .text-on-surface-variant {
+    @apply text-[rgb(73,69,78)] dark:text-[rgb(200,195,205)];
+  }
+}
+
+@layer components {
+  .md3-card {
+    @apply rounded-xl bg-white shadow-lg dark:bg-white overflow-hidden transition-all duration-300;
+  }
+  
+  .md3-button {
+    @apply flex items-center justify-center gap-2 px-6 py-2 rounded-full font-medium text-sm 
+           transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  
+  .md3-button-filled {
+    @apply md3-button bg-primary text-on-primary hover:bg-primary hover:bg-opacity-90 focus:ring-primary focus:ring-opacity-50;
+  }
+  
+  .md3-button-outlined {
+    @apply md3-button border-2 border-outline text-primary hover:bg-primary hover:bg-opacity-10 focus:ring-primary focus:ring-opacity-30;
+  }
+  
+  .md3-button-text {
+    @apply md3-button text-primary hover:bg-primary hover:bg-opacity-10 focus:ring-primary focus:ring-opacity-30;
+  }
+  
+  .md3-input {
+    @apply w-full px-4 py-2 rounded-lg border-2 border-outline outline-none 
+           transition-all duration-200 focus:border-primary focus:ring-2 focus:ring-primary focus:ring-opacity-30;
+  }
+  
+  .md3-label {
+    @apply block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1;
+  }
+  
+  .md3-fab {
+    @apply flex items-center justify-center w-14 h-14 rounded-full bg-secondary text-on-secondary
+           shadow-lg hover:shadow-xl transition-all duration-300 focus:outline-none focus:ring-2 
+           focus:ring-secondary focus:ring-opacity-50 fixed bottom-6 right-6;
+  }
+  
+  .md3-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .md3-sidebar {
+    @apply fixed left-0 top-0 h-full bg-surface text-on-surface w-64 shadow-lg 
+           transform transition-transform duration-300 ease-in-out z-30;
+  }
+  
+  .md3-navbar {
+    @apply sticky top-0 z-20 bg-surface text-on-surface shadow-sm flex items-center justify-between px-4 py-2;
+  }
+}

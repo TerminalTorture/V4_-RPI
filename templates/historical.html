@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historical Data</title>
+    <link rel="stylesheet" href="static/css/tailwind-output.css">
+    <link rel="stylesheet" href="static/css/material_design.css">
+    <link rel="stylesheet" href="static/css/css2.css" />
+    <script src="static/js/chart.js"></script>
+    <style>
+        /* Simple Spinner Animation */
+        .simple-spinner {
+            border: 6px solid rgba(0, 0, 0, 0.1); /* Increased thickness, light grey track */
+            width: 48px; /* Increased size */
+            height: 48px; /* Increased size */
+            border-radius: 50%;
+            border-left-color: #3498db; /* Keep distinct blue color */
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen">
+
+    <!-- Navigation Bar -->
+    <nav class="md3-navbar fixed top-0 left-0 right-0 z-40">
+        <div class="flex items-center">
+            <!-- Always visible hamburger menu button -->
+            <button id="hamburger-menu" aria-label="Menu" class="p-2 rounded-full hover:bg-surface-variant">
+                <span class="material-symbols-rounded">menu</span>
+            </button>
+            <a href="/" class="flex items-center gap-2 px-2">
+                <img src="static/images/logo.png" alt="Logo" class="h-8 w-auto">
+                <h1 class="text-xl font-medium">VFlow</h1>
+            </a>
+            <h2 class="ml-4 hidden sm:block" id="unitName">Unit: XX</h2>
+        </div>
+        <div class="hidden md:flex items-center gap-2">
+            <a href="/" class="md3-button-text">Home</a>
+            <a href="historical" class="md3-button-text bg-primary bg-opacity-10">Historical Data</a>
+<a href="settings" class="md3-button-text">Settings</a>
+            {% if current_user.is_authenticated %}
+                <div class="text-sm">Welcome, {{ current_user.username }}</div>
+                <a href="{{ url_for('logout') }}" class="md3-button-outlined">Logout</a>
+            {% else %}
+                <button onclick="openLoginModal()" class="md3-button-filled">Login</button>
+            {% endif %}
+        </div>
+    </nav>
+
+    <!-- Sidebar -->
+    <div id="sidebar" class="md3-sidebar fixed inset-y-0 left-0 z-30 w-64 transform -translate-x-full transition-transform duration-300 ease-in-out bg-surface shadow-lg pt-16">
+        <div class="p-4 border-b border-outline border-opacity-20">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <img src="static/images/logo.png" alt="Logo" class="h-8 w-auto">
+                    <h1 class="text-xl font-medium">VFlow</h1>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex flex-col p-2">
+            <a href="/" class="flex items-center gap-3 p-3 rounded-lg hover:bg-primary hover:bg-opacity-10">
+                <span class="material-symbols-rounded">home</span>
+                <span>Home</span>
+            </a>
+            <a href="historical" class="flex items-center gap-3 p-3 rounded-lg bg-primary bg-opacity-10">
+                <span class="material-symbols-rounded">insights</span>
+                <span>Historical Data</span>
+            </a>
+<a href="settings" class="flex items-center gap-3 p-3 rounded-lg hover:bg-primary hover:bg-opacity-10">
+                <span class="material-symbols-rounded">settings</span>
+                <span>Settings</span>
+            </a>
+        </div>
+        
+        <!-- Configuration Section in Sidebar -->
+        <div class="absolute bottom-0 left-0 right-0 border-t border-outline border-opacity-20 p-4">
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <label for="ipAddress" class="md3-label">Modbus IP Address:</label>
+                    <div class="flex items-center">
+                        <span class="material-symbols-rounded text-outline mr-2">lan</span>
+                        <input type="text" id="ipAddress" class="md3-input" placeholder="Enter IP Address">
+                    </div>
+                </div>
+                
+                <div class="space-y-2">
+                    <label for="portNumber" class="md3-label">Modbus Port:</label>
+                    <div class="flex items-center">
+                        <span class="material-symbols-rounded text-outline mr-2">tag</span>
+                        <input type="number" id="portNumber" class="md3-input" placeholder="Enter Port">
+                    </div>
+                </div>
+                
+                <div class="space-y-2">
+                    <label for="variableCount" class="md3-label">Modbus Variable Count:</label>
+                    <div class="flex items-center">
+                        <span class="material-symbols-rounded text-outline mr-2">numbers</span>
+                        <input type="number" id="variableCount" class="md3-input" placeholder="Enter Variable Count" min="1" max="136">
+                    </div>
+                </div>
+                
+                <button onclick="saveConfig()" class="md3-button-filled w-full mt-4">
+                    <span class="material-symbols-rounded">save</span>
+                    Save Configuration
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overlay for closing sidebar on mobile -->
+    <div id="sidebar-overlay" class="fixed inset-0 z-20 bg-black bg-opacity-50 hidden md:hidden"></div>
+
+    <!-- Loading Indicator (Consolidated and Styled) -->
+    <!-- Ensure this is the ONLY element with id="loadingIndicator" -->
+    <div id="loadingIndicator" class="fixed inset-0 z-50 flex items-center justify-center bg-background bg-opacity-50 hidden pointer-events-none">
+        <div class="simple-spinner"></div>
+        <!-- Optional: Add text back if desired -->
+        <!-- <p class="ml-4 text-lg font-semibold text-on-background">Loading historical data...</p> -->
+    </div>
+
+    <!-- Main Content -->
+    <main id="main-content" class="container mx-auto px-4 py-8 transition-all duration-300 ease-in-out pt-20 relative">
+        <!-- REMOVED Duplicate Loading Indicator Overlay -->
+        <!-- 
+        <div id="loadingIndicator" class="fixed inset-0  bg-background bg-opacity-50 flex items-center justify-center z-50 pointer-events-none" style="display: none;"> 
+            <div class="simple-spinner"></div>
+        </div> 
+        -->
+        
+        <!-- Control Panel -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <!-- Profile Info -->
+            <div class="md3-card p-4">
+                <h3 class="text-lg font-medium mb-2">Profile</h3>
+                <p id="profileInfo" class="text-on-surface-variant">10kW / 250kWh</p>
+                <p id="siteName" class="text-on-surface-variant">Site: Singapore</p>
+            </div>
+            
+            <!-- Range Selection -->
+            <div class="md3-card p-4">
+                <div class="space-y-3">
+                    <div class="flex items-center gap-2">
+                        <span class="material-symbols-rounded text-primary">date_range</span>
+                        <label for="rangeSelect" class="md3-label">Select Data Range:</label>
+                    </div>
+                    <select id="rangeSelect" class="md3-input">
+                        <option value="30m">Past 30 mins</option>
+                        <option value="2h">Past 2 Hour</option>
+                        <option value="5h">Past 7 Hour</option>
+                        <option value="12h">Past 12 Hours</option>
+                        <option value="24h">Past 1 Day</option>
+                        <option value="2d">Past 2 Days</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                    
+                    <div id="customDateRange" class="hidden space-y-2">
+                        <div class="flex flex-col">
+                            <label for="startDate" class="md3-label">From:</label>
+                            <input type="datetime-local" id="startDate" class="md3-input">
+                        </div>
+                        <div class="flex flex-col">
+                            <label for="endDate" class="md3-label">To:</label>
+                            <input type="datetime-local" id="endDate" class="md3-input">
+                        </div>
+                        <button id="fetchCustomData" class="md3-button-filled w-full">
+                            <span class="material-symbols-rounded">search</span>
+                            Fetch Data
+                        </button>
+                    </div>
+                    
+                    <button onclick="resetZoom()" class="md3-button-outlined w-full">
+                        <span class="material-symbols-rounded">zoom_out_map</span>
+                        Reset Zoom
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Download Button -->
+            <div class="md3-card p-4">
+                <h3 class="text-lg font-medium mb-2">Download 30 Days</h3>
+                {% if current_user.is_authenticated and current_user.is_admin %}
+                    <button id="download30Days" class="md3-button-filled w-full">
+                        <span class="material-symbols-rounded">download</span>
+                        Download
+                    </button>
+                {% else %}
+                    <p class="text-on-error text-center">You need to be an admin to download data.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div id="historical-charts-container" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <!-- Chart canvases will be dynamically inserted here by historical.js -->
+        </div>
+        
+        <!-- Data Export Section -->
+        <div class="md3-card p-6 mb-8">
+            <h3 class="text-xl font-medium mb-4">Download Data</h3>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div class="space-y-2">
+                        <label for="downloadRange" class="md3-label">Select Time Range:</label>
+                        <select id="downloadRange" class="md3-input">
+                            <option value="2h">Last 2 Hours</option>
+                            <option value="24h">Last 1 Day</option>
+                            <option value="48h">Last 2 Days</option>
+                            <option value="3d">Last 3 Days</option>
+                            <option value="7d">Last 1 Week</option>
+                            <option value="30d">Last 30 Days</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                    </div>
+                    
+                    <div id="customDateInputs" class="hidden space-y-3">
+                        <div class="space-y-2">
+                            <label for="customStartDate" class="md3-label">From:</label>
+                            <input type="datetime-local" id="customStartDate" class="md3-input">
+                        </div>
+                        <div class="space-y-2">
+                            <label for="customEndDate" class="md3-label">To:</label>
+                            <input type="datetime-local" id="customEndDate" class="md3-input">
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="md3-label mb-2">Select Variables:</h4>
+                    <div id="variableCheckboxes" class="max-h-40 overflow-y-auto p-2 border border-outline rounded-lg">
+                        <!-- Checkboxes populated by export.js or historical.js -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6">
+                {% if current_user.is_authenticated and current_user.is_admin %}
+                    <button id="downloadCsvButton" class="md3-button-filled">
+                        <span class="material-symbols-rounded">download</span>
+                        Download Data
+                    </button>
+                {% else %}
+                    <p class="text-on-error">You need to be an admin to download data.</p>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+
+    <script>
+        window.isAuthenticated = "{{ 'true' if current_user.is_authenticated else 'false' }}";
+        window.isAdminUser = "{{ 'true' if current_user.is_authenticated and current_user.is_admin else 'false' }}";
+    </script>
+    
+    <!-- JavaScript Files -->
+    <script src="static/js/config.js"></script>
+    <script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/cdn.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chartjs-adapter-date-fns.bundle.min.js') }}"></script>
+    <script src="static/js/hammer.min.js"></script>
+    <script src="static/js/chartjs-plugin-zoom.min.js"></script>
+    <script src="static/js/historical.js"></script>
+    <script src="static/js/export.js"></script>
+    
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('main-content');
+        const hamburgerMenu = document.getElementById('hamburger-menu');
+        const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+        function openSidebar() {
+          sidebar.classList.remove('-translate-x-full');
+          mainContent.classList.add('md:ml-64');
+          sidebarOverlay.classList.remove('hidden'); // Show overlay on mobile
+        }
+
+        function closeSidebar() {
+          sidebar.classList.add('-translate-x-full');
+          mainContent.classList.remove('md:ml-64');
+          sidebarOverlay.classList.add('hidden'); // Hide overlay
+        }
+
+        // Toggle sidebar with hamburger
+        hamburgerMenu.addEventListener('click', function(event) {
+          event.stopPropagation(); // Prevent click from immediately closing via overlay
+          if (sidebar.classList.contains('-translate-x-full')) {
+            openSidebar();
+          } else {
+            closeSidebar();
+          }
+        });
+
+        // Close sidebar by clicking overlay
+        sidebarOverlay.addEventListener('click', function() {
+          closeSidebar();
+        });
+        
+        // Toggle custom date range for viewing charts
+        document.getElementById('rangeSelect').addEventListener('change', function() {
+            const customDateDiv = document.getElementById('customDateRange');
+            if (this.value === 'custom') {
+                customDateDiv.classList.remove('hidden');
+            } else {
+                customDateDiv.classList.add('hidden');
+                // Immediately fetch data for non-custom ranges
+                fetchHistoricalData(this.value); 
+            }
+        });
+
+        // Fetch data when custom range is applied
+        document.getElementById('fetchCustomData').addEventListener('click', () => {
+            const startVal = document.getElementById('startDate').value;
+            const endVal = document.getElementById('endDate').value;
+            if (startVal && endVal) {
+                const startDate = new Date(startVal);
+                const endDate = new Date(endVal);
+                if (startDate < endDate) {
+                    fetchHistoricalData('custom', startDate, endDate);
+                } else {
+                    alert('Start date must be before end date.');
+                }
+            } else {
+                alert('Please select both start and end dates.');
+            }
+        });
+        
+        // Toggle custom date inputs for download (handled by export.js, but let's keep it here for now)
+        document.getElementById('downloadRange').addEventListener('change', function() {
+            const customInputs = document.getElementById('customDateInputs');
+            if (this.value === 'custom') {
+                customInputs.classList.remove('hidden');
+            } else {
+                customInputs.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
+

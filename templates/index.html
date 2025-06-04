@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sensor Monitoring</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind-output.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/material_design.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/css2.css') }}">
+  <script>
+    // Make authentication state available to JavaScript
+    var isAuthenticated = "{{ 'true' if is_authenticated else 'false' }}";
+  </script>
+</head>
+<!-- Updated layout for better space utilization and responsiveness -->
+<body class="bg-background text-on-background min-h-screen">
+  <!-- Navigation Bar -->
+  <nav class="md3-navbar fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4">
+    <div class="flex items-center"> <!-- Group for left-aligned items -->
+      <!-- Hamburger Menu -->
+      <button id="hamburger-menu" aria-label="Menu" class="p-2 rounded-full hover:bg-surface-variant">
+        <span class="material-symbols-rounded">menu</span>
+      </button>
+      <a href="/" class="flex items-center gap-2 px-2"> <!-- Added px-2 for consistency with historical.html -->
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="h-8 w-auto">
+        <h1 class="text-xl font-medium">VFlow</h1>
+      </a>
+      <h2 class="ml-4 hidden sm:block" id="unitName">Unit: XX</h2> <!-- Added unitName here -->
+    </div>
+    <div class="hidden md:flex items-center gap-2"> <!-- Group for right-aligned items -->
+      <a href="/" class="md3-button-text bg-primary bg-opacity-10">Home</a>
+      <a href="historical" class="md3-button-text">Historical Data</a>
+      <a href="settings" class="md3-button-text">Settings</a>
+      {% if current_user.is_authenticated %}
+        <div class="text-sm">Welcome, {{ current_user.username }}</div>
+        <a href="{{ url_for('logout') }}" class="md3-button-outlined">Logout</a>
+      {% else %}
+        <button onclick="openLoginModal()" class="md3-button-filled">Login</button>
+      {% endif %}
+    </div>
+  </nav>
+
+  <!-- Login Modal -->
+  <div id="loginModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-50">
+    <div class="md3-card max-w-md w-full m-4">
+      <div class="bg-primary-container p-4 flex justify-between items-center">
+        <h2 class="text-xl font-medium text-on-primary-container">Login</h2>
+        <button onclick="closeLoginModal()" class="p-2 rounded-full hover:bg-surface-variant">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+      <form id="loginForm" method="POST" action="/login" class="p-6 space-y-4">
+        <div class="space-y-2">
+          <label for="username" class="md3-label">Username:</label>
+          <input type="text" id="username" name="username" class="md3-input" required>
+        </div>
+        <div class="space-y-2">
+          <label for="password" class="md3-label">Password:</label>
+          <input type="password" id="password" name="password" class="md3-input" required>
+        </div>
+        <button type="submit" class="md3-button-filled w-full mt-4">
+          <span class="material-symbols-rounded">login</span>
+          Login
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div id="sidebar" class="md3-sidebar fixed inset-y-0 left-0 z-30 w-64 transform -translate-x-full transition-transform duration-300 ease-in-out bg-surface shadow-lg pt-16">
+    <div class="p-4 border-b border-outline border-opacity-20">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <img src="static/images/logo.png" alt="Logo" class="h-8 w-auto">
+          <h1 class="text-xl font-medium">VFlow</h1>
+          <h2 class="ml-4 hidden sm:block" id="unitName">Unit: XX</h2>
+        </div>
+      </div>
+    </div>
+    
+    <div class="flex flex-col p-2">
+      <a href="/" class="flex items-center gap-3 p-3 rounded-lg bg-primary bg-opacity-10">
+        <span class="material-symbols-rounded">home</span>
+        <span>Home</span>
+      </a>
+      <a href="historical" class="flex items-center gap-3 p-3 rounded-lg hover:bg-primary hover:bg-opacity-10">
+        <span class="material-symbols-rounded">insights</span>
+        <span>Historical Data</span>
+<a href="settings" class="flex items-center gap-3 p-3 rounded-lg hover:bg-primary hover:bg-opacity-10">
+        <span class="material-symbols-rounded">settings</span>
+        <span>Settings</span>
+      </a>
+    </div>
+
+    <!-- Loading Spinner -->
+  <div id="loadingSpinner" class="fixed inset-0 z-40 flex items-center justify-center bg-background bg-opacity-70 hidden">
+    <div class="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+  </div>
+    
+    <!-- Configuration Section in Sidebar -->
+    <div class="p-4 border-t border-outline border-opacity-20">
+      <div class="space-y-4">
+        <div class="space-y-2">
+          <label for="ipAddress" class="md3-label">Modbus IP Address:</label>
+          <div class="flex items-center">
+            <span class="material-symbols-rounded text-outline mr-2">lan</span>
+            <input type="text" id="ipAddress" class="md3-input" placeholder="Enter IP Address">
+          </div>
+        </div>
+        
+        <div class="space-y-2">
+          <label for="portNumber" class="md3-label">Modbus Port:</label>
+          <div class="flex items-center">
+            <span class="material-symbols-rounded text-outline mr-2">tag</span>
+            <input type="number" id="portNumber" class="md3-input" placeholder="Enter Port">
+          </div>
+        </div>
+        
+        <!-- <div class="space-y-2">
+          <label for="variableCount" class="md3-label">Modbus Variable Count:</label>
+          <div class="flex items-center">
+            <span class="material-symbols-rounded text-outline mr-2">numbers</span>
+            <input type="number" id="variableCount" class="md3-input" placeholder="Enter Variable Count" min="1" max="136">
+          </div>
+        </div> -->
+        
+        <button onclick="handleSaveConfig()" class="md3-button-filled w-full mt-4">
+          <span class="material-symbols-rounded">save</span>
+          Save Configuration
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay for closing sidebar on mobile -->
+  <div id="sidebar-overlay" class="fixed inset-0 z-20 bg-black bg-opacity-50 hidden md:hidden"></div>
+
+  <!-- Main Content -->
+  <main class="container mx-auto px-4 py-8 pt-20">
+    <!-- Profile, Status, and SOC Meters -->
+    <!-- Main Grid: 2 columns on medium screens and up -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6"> 
+      
+      <!-- Left Column: Profile and Status stacked -->
+      <div class="flex flex-col gap-4">
+        <!-- Profile Card -->
+        <div class="md3-card p-4">
+          <h3 class="text-lg font-medium mb-2">Profile</h3>
+          <p id="profileInfo" class="text-on-surface-variant">10kW / 250kWh</p>
+          <p id="siteName" class="text-on-surface-variant">Site: Singapore</p>
+        </div>
+        
+        <!-- Status Card -->
+        <div class="md3-card p-2 flex flex-col items-center justify-center">
+          <div class="flex items-center justify-between w-full mb-2 px-2">
+            <div>Status: <span id="statusIndicator" class="font-medium text-primary">Live 🔄</span></div>
+            <div class="flex gap-2">
+              <button id="pauseResumeButton" class="md3-button-text text-xs">Pause Updates</button>
+              <button onclick="window.resetAllChartsZoom()" class="md3-button-text text-xs">Reset Zoom</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: SOC Meters side-by-side -->
+      <div class="grid grid-cols-2 gap-4">
+        <!-- Cluster 1 SOC Meter Container -->
+        <div id="cluster1SocMeterContainer" class="md3-card p-3 flex flex-col items-center justify-center bg-surface-container-lowest min-h-[170px]">
+          <h3 class="text-lg font-medium mb-3 text-on-surface-variant text-center">Cluster 1 SOC</h3>
+          <!-- Canvas and value text for CL1 SOC will be dynamically inserted here by sensor.js -->
+        </div>
+
+        <!-- Cluster 2 SOC Meter Container -->
+        <div id="cluster2SocMeterContainer" class="md3-card p-3 flex flex-col items-center justify-center bg-surface-container-lowest min-h-[170px]">
+          <h3 class="text-lg font-medium mb-3 text-on-surface-variant text-center">Cluster 2 SOC</h3>
+          <!-- Canvas and value text for CL2 SOC will be dynamically inserted here by sensor.js -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Section for Live Status Display Values (Dynamic) -->
+    <section id="liveStatusDisplaySection" class="mb-8">
+      <h2 class="text-xl font-medium mb-8 text-on-surface-variant">Live Status Values</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-x-1.5 gap-y-4">
+        <div>
+          <h3 class="text-lg font-medium mb-3 text-on-surface-variant text-center md:text-left">Cluster 1</h3>
+          <div id="cluster1StatusDisplayGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 m-4"> <!-- Changed mr-4 to m-4 -->
+            <!-- Cluster 1 status display cards will be dynamically inserted here by sensor.js -->
+          </div>
+        </div>
+        <div>
+          <h3 class="text-lg font-medium mb-3 text-on-surface-variant text-center md:text-left">Cluster 2</h3>
+          <div id="cluster2StatusDisplayGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 m-4">
+            <!-- Cluster 2 status display cards will be dynamically inserted here by sensor.js -->
+          </div>
+        </div>
+      </div>
+      <!-- New System Status Grid -->
+      <div class="mt-8"> <!-- Add some margin top for separation -->
+        <h3 class="text-lg font-medium mb-3 text-on-surface-variant text-center md:text-left">System Status</h3>
+        <div id="systemStatusDisplayGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 m-4">
+          <!-- System status display cards will be dynamically inserted here by sensor.js -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Section for Live Charts (Dynamic) -->
+    <section id="liveChartsSection" class="mb-8"> <!-- Added mb-8 to the section itself for overall spacing -->
+      <h2 class="text-xl font-medium mb-4 text-on-surface-variant">Live Data Charts</h2>
+      <div id="liveChartsGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6"> <!-- Added mb-6 here -->
+        <!-- Grouped Line charts will be dynamically inserted here by sensor.js -->
+      </div>
+    </section>
+  </main>
+
+  <!-- JavaScript -->
+  <script src="{{ url_for('static', filename='js/config.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/chart.umd.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/chartjs-adapter-date-fns.bundle.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/hammer.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/chartjs-plugin-zoom.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/sensor.js', v=current_time) }}"></script>
+
+  <script>
+    // Keep login modal functions globally accessible for onclick attributes
+    function openLoginModal() {
+      if (typeof window.showLoginModal === 'function') {
+        window.showLoginModal();
+      } else {
+        console.error('showLoginModal function not found in sensor.js');
+        const modal = document.getElementById('loginModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.classList.add('flex'); // Ensure it's flex if that's how it's shown
+        }
+      }
+    }
+
+    function closeLoginModal() {
+      if (typeof window.closeLoginModal === 'function') {
+        window.closeLoginModal();
+      } else {
+        console.error('closeLoginModal function not found in sensor.js');
+        const modal = document.getElementById('loginModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex'); // Ensure it's hidden
+        }
+      }
+    }
+
+    function handleSaveConfig() {
+      if (typeof saveConfig === 'function') {
+        saveConfig();
+      } else {
+        console.error('saveConfig function is not defined. Please ensure config.js is loaded correctly and defines a global saveConfig function.');
+        // Optionally, inform the user with an alert or UI message.
+        // alert('Error: Configuration saving function is not available.');
+      }
+    }
+  </script>
+</html>

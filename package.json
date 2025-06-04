@@ -1,0 +1,14 @@
+{
+  "dependencies": {
+    "chart.js": "^4.4.7",
+    "chartjs-adapter-date-fns": "^3.0.0",
+    "chartjs-plugin-zoom": "^2.2.0",
+    "date-fns": "^4.1.0",
+    "hammerjs": "^2.0.8",
+    "tailwindcss": "^3.4.17"
+  },
+  "scripts": {
+    "build:css": "tailwindcss -i ./static/css/tailwind-input.css -o ./static/css/tailwind-output.css",
+    "watch:css": "tailwindcss -i ./static/css/tailwind-input.css -o ./static/css/tailwind-output.css --watch"
+  }
+}

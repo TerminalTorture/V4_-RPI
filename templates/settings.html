@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings</title>
+    
+    <!-- Core Stylesheets -->
+    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="static/css/material_design.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    
+    <style>
+        /* Material Design 3 inspired styles */
+        :root {
+            --primary: #0D6EFE; /* Updated blue */
+            --on-primary: #FFFFFF;
+            --primary-container: #D0E4FF; /* Updated light blue */
+            --on-primary-container: #001D36; /* Updated dark blue */
+
+            --secondary: #625B71;
+            --on-secondary: #FFFFFF;
+            --secondary-container: #E8DEF8;
+            --on-secondary-container: #1E192B;
+
+            --tertiary: #7D5260;
+            --on-tertiary: #FFFFFF;
+            --tertiary-container: #FFD8E4;
+            --on-tertiary-container: #370B1E;
+
+            --error: #B3261E;
+            --on-error: #FFFFFF;
+            --error-container: #F9DEDC;
+            --on-error-container: #410E0B;
+
+            --surface: #FFFBFE;
+            --on-surface: #1C1B1F;
+            --surface-variant: #E7E0EC;
+            --on-surface-variant: #49454E;
+
+            --outline: #79747E;
+            --background: #FFFBFE;
+            --on-background: #1C1B1F;
+        }
+
+        /* General styling */
+        body {
+            background-color: var(--background);
+            color: var(--on-background);
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        /* Material Design 3 Card */
+        .md3-card {
+            background-color: var(--surface);
+            border-radius: 16px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-bottom: 20px;
+            transition: box-shadow 0.3s ease;
+        }
+        
+        .md3-card:hover {
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+        }
+        
+        .md3-card-header {
+            background-color: var(--primary-container);
+            color: var(--on-primary-container);
+            padding: 16px 24px;
+            font-weight: 500;
+        }
+        
+        .md3-card-content {
+            padding: 24px;
+        }
+        
+        /* Material Design 3 Form Elements */
+        .md3-form-group {
+            margin-bottom: 20px;
+        }
+        
+        .md3-label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--on-surface-variant);
+        }
+        
+        .md3-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--outline);
+            border-radius: 8px;
+            background-color: var(--surface);
+            color: var(--on-surface);
+            font-size: 16px;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .md3-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.2);
+            outline: none;
+        }
+        
+        .md3-input-with-icon {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .md3-icon {
+            color: var(--outline);
+        }
+        
+        /* Material Design 3 Buttons */
+        .md3-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 24px;
+            border-radius: 100px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            border: none;
+            text-transform: uppercase;
+        }
+        
+        .md3-button-primary {
+            background-color: var(--primary);
+            color: var(--on-primary);
+        }
+        
+        .md3-button-primary:hover {
+            background-color: #5D4890;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .md3-button-outlined {
+            background-color: var(--primary-container);
+            color: var(--primary);
+            border: 1px solid var(--outline);
+        }
+        
+        .md3-button-outlined:hover {
+            background-color: rgba(103, 80, 164, 0.08);
+            color: var(--on-primary);
+        }
+        
+        /* Navigation Bar */
+        .md3-navbar {
+            background-color: var(--primary);
+            color: var(--on-primary);
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .md3-navbar-title {
+            font-size: 20px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .md3-navbar-links {
+            display: flex;
+            gap: 16px;
+        }
+        
+        .md3-navbar-link {
+            color: var(--on-primary);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-weight: 500;
+            transition: background-color 0.3s ease;
+        }
+        
+        .md3-navbar-link:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .md3-navbar-link.active {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Sidebar */
+        .md3-sidebar {
+            background-color: var(--surface);
+            width: 280px;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+            z-index: 200;
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+            overflow-y: auto;
+        }
+        
+        .md3-sidebar.open {
+            transform: translateX(0);
+        }
+        
+        .md3-sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--outline);
+        }
+        
+        .md3-sidebar-close {
+            background: none;
+            border: none;
+            color: var(--on-surface);
+            cursor: pointer;
+            font-size: 24px;
+            padding: 4px;
+            border-radius: 50%;
+            transition: background-color 0.3s ease;
+        }
+        
+        .md3-sidebar-close:hover {
+            background-color: var(--surface-variant);
+        }
+        
+        .md3-sidebar-nav {
+            padding: 16px 0;
+        }
+        
+        .md3-sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 24px;
+            color: var(--on-surface);
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+        
+        .md3-sidebar-link:hover {
+            background-color: var(--surface-variant);
+        }
+        
+        .md3-sidebar-link.active {
+            background-color: var(--primary-container);
+            color: var(--on-primary-container);
+        }
+        
+        .md3-sidebar-section {
+            padding: 16px 24px;
+            border-top: 1px solid var(--outline);
+        }
+        
+        /* Container */
+        .md3-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+            margin-left: 280px;
+            transition: margin-left 0.3s ease;
+        }
+        
+        @media (max-width: 1024px) {
+            .md3-container {
+                margin-left: 0;
+            }
+        }
+        
+        /* Toggle button for mobile */
+        .md3-menu-toggle {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--on-primary);
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        @media (max-width: 768px) {
+            .md3-menu-toggle {
+                display: block;
+            }
+            
+            .md3-navbar-links {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- Navigation Bar -->
+    <div class="md3-navbar">
+        <div class="md3-navbar-title">
+            <button class="md3-menu-toggle" id="menu-toggle">
+                <span class="material-symbols-rounded">menu</span>
+            </button>
+            <a href="/" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;">
+                <img src="static/images/logo.png" alt="Logo" style="height: 32px;">
+                <span>VFlow Settings</span>
+            </a>
+        </div>
+        <div class="md3-navbar-links">
+            <a href="/" class="md3-navbar-link">Home</a>
+            <a href="historical" class="md3-navbar-link">Historical Data</a>
+            <a href="settings" class="md3-navbar-link active">Settings</a>
+            {% if current_user.is_authenticated %}
+                <span style="color: var(--on-primary); margin-right: 12px;">Welcome, {{ current_user.username }}</span>
+                <a href="{{ url_for('logout') }}" class="md3-button md3-button-outlined">Logout</a>
+            {% else %}
+                <button onclick="openLoginModal()" class="md3-button md3-button-primary">Login</button>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="md3-sidebar -translate-x-full md:translate-x-0" id="sidebar">
+        <div class="md3-sidebar-header">
+            <a href="/" style="display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit;">
+                <img src="static/images/logo.png" alt="Logo" style="height: 32px;">
+                <span>VFlow</span>
+            </a>
+            <button class="md3-sidebar-close" id="sidebar-close">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+        </div>
+        
+        <div class="md3-sidebar-nav">
+            <a href="/" class="md3-sidebar-link">
+                <span class="material-symbols-rounded">home</span>
+                <span>Home</span>
+            </a>
+            <a href="historical" class="md3-sidebar-link">
+                <span class="material-symbols-rounded">insights</span>
+                <span>Historical Data</span>
+            </a>
+            <a href="settings" class="md3-sidebar-link active">
+                <span class="material-symbols-rounded">settings</span>
+                <span>Settings</span>
+            </a>
+        </div>
+        
+        <div class="md3-sidebar-section">
+            <h3 style="color: var(--on-surface-variant); font-size: 14px; margin-bottom: 16px;">Modbus Configuration</h3>
+            
+            <div class="md3-form-group">
+                <label class="md3-label" for="ipAddress">IP Address:</label>
+                <div class="md3-input-with-icon">
+                    <span class="material-symbols-rounded md3-icon">lan</span>
+                    <input type="text" id="ipAddress" class="md3-input" placeholder="Enter IP Address">
+                </div>
+            </div>
+            
+            <div class="md3-form-group">
+                <label class="md3-label" for="portNumber">Port:</label>
+                <div class="md3-input-with-icon">
+                    <span class="material-symbols-rounded md3-icon">tag</span>
+                    <input type="number" id="portNumber" class="md3-input" placeholder="Enter Port">
+                </div>
+            </div>
+            
+            <div class="md3-form-group">
+                <label class="md3-label" for="variableCount">Variable Count:</label>
+                <div class="md3-input-with-icon">
+                    <span class="material-symbols-rounded md3-icon">numbers</span>
+                    <input type="number" id="variableCount" class="md3-input" placeholder="Enter Variable Count" min="1" max="125">
+                </div>
+            </div>
+            
+            <button onclick="saveConfig()" class="md3-button md3-button-primary" style="width: 100%;">
+                <span class="material-symbols-rounded">save</span>
+                Save Config
+            </button>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="md3-container">
+        <div class="md3-card">
+            <div class="md3-card-header">
+                <h2 style="margin: 0;">System Settings</h2>
+            </div>
+            <div class="md3-card-content">
+                <div class="md3-form-group">
+                    <label class="md3-label" for="unitName">Unit Name:</label>
+                    <div class="md3-input-with-icon">
+                        <span class="material-symbols-rounded md3-icon">inventory_2</span>
+                        <input type="text" id="unitName" class="md3-input" placeholder="Enter Unit Name">
+                    </div>
+                </div>
+                
+                <div class="md3-form-group">
+                    <label class="md3-label" for="profileInfo">Profile Information:</label>
+                    <div class="md3-input-with-icon">
+                        <span class="material-symbols-rounded md3-icon">info</span>
+                        <input type="text" id="profileInfo" class="md3-input" placeholder="Enter Profile Info (e.g., 10kW / 250kWh)">
+                    </div>
+                </div>
+                
+                <div class="md3-form-group">
+                    <label class="md3-label" for="siteName">Site Name:</label>
+                    <div class="md3-input-with-icon">
+                        <span class="material-symbols-rounded md3-icon">location_on</span>
+                        <input type="text" id="siteName" class="md3-input" placeholder="Enter Site Name (e.g., Singapore)">
+                    </div>
+                </div>
+                
+                <button onclick="saveSettings()" class="md3-button md3-button-primary" style="width: 100%;">
+                    <span class="material-symbols-rounded">save</span>
+                    Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript Files -->
+    <script src="static/js/config.js"></script>
+    <script src="static/js/settings.js"></script>
+    
+    <script>
+        // Mobile menu toggle
+        document.getElementById('menu-toggle').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.remove('-translate-x-full');
+        });
+        
+        document.getElementById('sidebar-close').addEventListener('click', function() {
+            document.getElementById('sidebar').classList.add('-translate-x-full');
+        });
+        
+        // Check if viewport is mobile on page load and adjust accordingly
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.innerWidth > 1024) {
+                document.getElementById('sidebar').classList.remove('-translate-x-full');
+            }
+            
+            // Load saved values into input fields
+            document.getElementById("ipAddress").value = localStorage.getItem("modbus_ip") || "192.168.1.10";
+            document.getElementById("portNumber").value = localStorage.getItem("modbus_port") || "1503";
+            document.getElementById("variableCount").value = localStorage.getItem("modbus_variable_count") || "80";
+        });
+    </script>
+</body>
+</html>

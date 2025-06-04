@@ -1,0 +1,90 @@
+/* Material Design 3 Base Styles */
+
+/* Font Settings */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+
+:root {
+  /* Animation Timing */
+  --md-motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
+  --md-motion-easing-emphasized: cubic-bezier(0.2, 0, 0, 1);
+  --md-motion-duration-short: 200ms;
+  --md-motion-duration-medium: 300ms;
+  --md-motion-duration-long: 500ms;
+}
+
+body {
+  font-family: 'Roboto', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--md-motion-duration-medium) var(--md-motion-easing-standard);
+}
+
+/* Animations and Transitions */
+.fade-in {
+  animation: fadeIn var(--md-motion-duration-medium) var(--md-motion-easing-standard);
+}
+
+.slide-in {
+  animation: slideIn var(--md-motion-duration-medium) var(--md-motion-easing-emphasized);
+}
+
+.scale-in {
+  animation: scaleIn var(--md-motion-duration-medium) var(--md-motion-easing-emphasized);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* States and Feedback */
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.3);
+  transform: scale(0);
+  animation: ripple 0.6s var(--md-motion-easing-emphasized);
+  pointer-events: none;
+}
+
+@keyframes ripple {
+  to { transform: scale(4); opacity: 0; }
+}
+
+/* Dark Mode Overrides */
+@media (prefers-color-scheme: light) {
+  .ripple {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Loading Animation */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 640px) {
+  :root {
+    /* Adjust animation duration for mobile */
+    --md-motion-duration-short: 150ms;
+    --md-motion-duration-medium: 250ms;
+  }
+}
+
+/* Focus Ring */
+*:focus-visible {
+  outline: 2px solid rgb(13, 110, 253); /* Updated to new primary blue */
+  outline-offset: 2px;
+}

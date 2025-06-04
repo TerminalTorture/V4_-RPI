@@ -1,0 +1,86 @@
+/* **********************
+   Enhanced Filter Container
+********************** */
+.filter-container {
+    padding: 15px;
+    background: #ffffff; /* White background for a fresh look */
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+.filter-container select,
+.filter-container input {
+    padding: 8px 10px;
+    margin: 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    transition: border-color 0.3s ease;
+}
+
+.filter-container select:focus,
+.filter-container input:focus {
+    border-color: #007bff;
+    outline: none;
+}
+
+/* **********************
+   Enhanced Table Container
+********************** */
+.table-container {
+    width: 90%;
+    margin: 20px auto;
+    max-height: 500px;
+    overflow-x: auto;
+    overflow-y: auto;
+    border: none; /* Removing the plain border */
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* **********************
+   Table Styling
+********************** */
+table {
+    width: 100%;
+    border-collapse: separate; /* Allows for rounded corners */
+    border-spacing: 0;
+}
+
+thead {
+    position: sticky;
+    top: 0;
+    background: #0D6EFD; /* Updated to new primary blue */
+    color: white;
+}
+
+thead th {
+    padding: 10px;
+    font-weight: 600;
+}
+
+th,
+td {
+    border-bottom: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+/* Alternating row background for clarity */
+tr:nth-child(even) td {
+    background: #f9f9f9;
+}
+
+/* Hover effect for rows */
+tr:hover td {
+    background: #e9f5ff;
+    transition: background 0.3s ease;
+}
+
+/* Remove the bottom border for the last row */
+tr:last-child td {
+    border-bottom: none;
+}
