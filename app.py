@@ -1,39 +1,54 @@
 import os
 import sys
 import threading
-import subprocess
+# import subprocess # No longer used
 from flask import Flask, render_template, redirect, url_for, send_from_directory, request, jsonify, flash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from apscheduler.schedulers.background import BackgroundScheduler
-from apscheduler.executors.pool import ThreadPoolExecutor, ProcessPoolExecutor
+from apscheduler.executors.pool import ThreadPoolExecutor # , ProcessPoolExecutor # ProcessPoolExecutor not used
+
+# --- Environment Variable Loading ---
+project_root = os.path.abspath(os.path.dirname(__file__))
+dotenv_path = os.path.join(project_root, '.env')
+try:
+    from dotenv import load_dotenv
+    if os.path.exists(dotenv_path):
+        load_dotenv(dotenv_path=dotenv_path, override=True)
+        print(f"✅ app.py: Environment variables loaded from {dotenv_path}")
+    else:
+        print(f"⚠️ app.py: .env file not found at {dotenv_path}. Using system environment variables only.")
+except ImportError:
+    print("⚠️ app.py: python-dotenv not available, using system environment variables only")
+# --- End Environment Variable Loading ---
+
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 from api.config_loader import REGISTER_CONFIG # Import the loaded config
-from api.live_data import live_data_api # Import only the blueprint, not the old SQLAlchemy models
-from api.hist_data import historical_data_api  # Updated to use PostgreSQL
-# Removed: from api.modbus_client import read_modbus_data - no longer needed for PostgreSQL-based data
-from api.extensions import db  # SQLAlchemy for user authentication (SQLite), PostgreSQL handled directly in live_data.py
-from datetime import datetime, timedelta, timezone # MODIFIED: timezone import already present, UTC removed as set_timezone will be used
+# from api.live_data import store_data_to_db, add_dynamic_columns # No longer needed here
+from api.live_data import live_data_api # Only live_data_api is needed for blueprint registration
+from api.hist_data import historical_data_api
+from api.extensions import db
+from datetime import datetime, timedelta # UTC removed, set_timezone will be used
+from api.timezone_config import set_timezone # ADDED: Import set_timezone
 import logging # Add logging import
 import yaml # Add this import
-
-# Import centralized timezone configuration
-from api.timezone_config import set_timezone
+import psycopg2 # Added for psycopg2 usage
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
-# SQLite Database Configuration (used only for user authentication, not sensor data)
-# Sensor data is now stored in PostgreSQL and accessed via mqtt_subscriber.py
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(os.getcwd(), 'instance', 'sensor_data.db') + '?check_same_thread=False'
+
+# PostgreSQL Database Configuration for Flask-SQLAlchemy (primarily for User model)
+# The sensor_data table is managed by mqtt_subscriber.py, not by Flask's SQLAlchemy models here.
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'postgresql://sensor_user:Master123@localhost:5432/sensor_data')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-logging.getLogger('werkzeug').disabled = True # Consider enabling werkzeug logs for debugging
+# logging.getLogger('werkzeug').disabled = True # Consider enabling werkzeug logs for debugging
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 # Initialize extensions
-db.init_app(app)
+db.init_app(app) # For User model
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
@@ -41,7 +56,7 @@ login_manager.login_view = 'login'
 
 # Register API Blueprints
 app.register_blueprint(live_data_api, url_prefix='/api')
-app.register_blueprint(historical_data_api, url_prefix='/api')  # Re-enabled with PostgreSQL support
+app.register_blueprint(historical_data_api, url_prefix='/api')
 
 # --- Add API endpoint for register definitions ---
 @app.route('/api/registers/definitions')
@@ -59,7 +74,7 @@ def get_register_definitions():
 # --- Endpoint added ---
 
 
-class User (UserMixin, db.Model):
+class User (UserMixin, db.Model): # User model remains for authentication
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80),unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
@@ -67,19 +82,14 @@ class User (UserMixin, db.Model):
 
 @login_manager.user_loader
 def load_user (user_id):
-    return User.query.get(int(user_id))
+    return User.query.get(int(user_id)) # Keep for user authentication
 
 
-# ... (Background task setup)
-collect_sensor_lock = threading.Lock()
+# SensorData model, collect_sensor_data, and related lock are removed
+# as data ingestion is handled by api/mqtt_subscriber.py
 
-# --- Legacy function - sensor data collection now handled by MQTT subscriber ---
-def collect_sensor_data():
-    """Legacy function - sensor data collection now handled by MQTT subscriber"""
-    # This function is now replaced by the PostgreSQL MQTT subscriber
-    # The web app only reads data from PostgreSQL, it doesn't collect it
-    logging.debug("collect_sensor_data called - data collection now handled by MQTT subscriber")
-    pass
+# --- Modify collect_sensor_data ---
+# The collect_sensor_data function is removed. Data collection is handled by mqtt_subscriber.py
 
 # ... (Scheduler setup remains the same)
 executors = {
@@ -87,40 +97,93 @@ executors = {
 }
 
 def delete_old_data():
-    """Legacy function - data cleanup now handled by PostgreSQL MQTT subscriber"""
-    # Data cleanup is now handled by the PostgreSQL subscriber or database maintenance
-    logging.debug("delete_old_data called - data cleanup now handled by PostgreSQL subscriber")
-    pass
+    """Deletes sensor data older than 30 days from the database."""
+    # This function now needs to use raw SQL or a different mechanism if SensorData model is removed,
+    # or it should be part of the mqtt_subscriber service if that's more appropriate.
+    # For now, let's assume direct psycopg2 usage for this task if it must remain in app.py
+    try:
+        cutoff_date = datetime.now(set_timezone) - timedelta(days=30)
+        
+        # Use psycopg2 to connect and delete old data from the 'sensor_data' table
+        # This avoids reliance on a Flask-SQLAlchemy model for this table
+        pg_config = {
+            'host': os.getenv('POSTGRES_HOST', 'localhost'),
+            'port': int(os.getenv('POSTGRES_PORT', '5432')),
+            'database': os.getenv('POSTGRES_DATABASE', 'sensor_data'), # Default to sensor_data
+            'user': os.getenv('POSTGRES_USER', 'sensor_user'),         # Default to sensor_user
+            'password': os.getenv('POSTGRES_PASSWORD', 'Master123')   # Default to Master123
+        }
+        conn = None
+        deleted_count = 0
+        try:
+            conn = psycopg2.connect(**pg_config)
+            conn.autocommit = True # Use autocommit for delete operations
+            cur = conn.cursor()
+            cur.execute(f"DELETE FROM {os.getenv('POSTGRES_TABLE', 'sensor_data')} WHERE timestamp < %s", (cutoff_date,))
+            deleted_count = cur.rowcount
+            cur.close()
+        except Exception as e:
+            logging.error(f"Error during raw SQL delete_old_data: {e}", exc_info=True)
+        finally:
+            if conn:
+                conn.close()
+
+        if deleted_count > 0:
+            logging.info(f"Deleted {deleted_count} records older than {cutoff_date} using direct SQL.")
+        else:
+            logging.info("No old records found to delete using direct SQL.")
+            
+    except Exception as e:
+        logging.error(f"Error in delete_old_data job: {e}", exc_info=True)
 
 
 def start_scheduler():
-    """
-    Background scheduler for web app maintenance tasks.
-    Note: Sensor data collection is now handled by mqtt_subscriber.py
-    """
     scheduler = BackgroundScheduler(executors=executors)
-    
-    # Note: Data collection and cleanup now handled by PostgreSQL MQTT subscriber
-    # Only add scheduler jobs here if needed for web app maintenance
-    
+    # Schedule data collection (e.g., every 5 seconds) - REMOVED
+    # scheduler.add_job(collect_sensor_data, 'interval', seconds=5, id='collect_data_job', replace_existing=True)
+    # Schedule old data deletion (e.g., daily at 3 AM)
+    scheduler.add_job(delete_old_data, 'cron', hour=3, id='delete_old_data_job', replace_existing=True)
     scheduler.start()
-    logging.info("Background scheduler started (sensor data collection handled by MQTT subscriber).")
+    logging.info("Background scheduler started (delete_old_data job only).")
 
 
-# --- Create database tables (User table only) ---
+# --- Create database tables AFTER dynamic columns are added ---
 with app.app_context():
-    logging.info("Initializing SQLite database for user authentication...")
-    db.create_all() # Create User table for authentication
-    logging.info("Database tables created (if they didn't exist).")
+    logging.info("Initializing database for User model...")
+    # add_dynamic_columns() # Removed - SensorData model and its columns are managed by mqtt_subscriber
+    db.create_all() # Creates tables for models defined in Flask-SQLAlchemy (i.e., User model)
+    logging.info("Database tables for User model created (if they didn't exist).")
 
     # Create default admin user if not exists
     if not User.query.filter_by(username='admin').first():
+        # Default password is 'admin', ensure this is changed in production
         hashed_password = generate_password_hash('admin', method='pbkdf2:sha256')
-        admin_user = User(username='admin', password=hashed_password, is_admin=True)
-        db.session.add(admin_user)
-        db.session.commit()
-        logging.info("Default admin user created.")
+        # Create a non-admin user 'vflow' with password 'password'
+        # To create an admin: User(username='admin', password=generate_password_hash('admin_password'), is_admin=True)
+        # For consistency with login error logs, let's use 'vflow' as the default non-admin
+        default_user_username = os.getenv('DEFAULT_USER_USERNAME', 'vflow')
+        default_user_password = os.getenv('DEFAULT_USER_PASSWORD', 'password') # Ensure this is secure or changed
+        
+        if not User.query.filter_by(username=default_user_username).first():
+            hashed_password_default = generate_password_hash(default_user_password, method='pbkdf2:sha256')
+            default_user = User(username=default_user_username, password=hashed_password_default, is_admin=False)
+            db.session.add(default_user)
+            db.session.commit()
+            logging.info(f"Default user '{default_user_username}' created.")
+        else:
+            logging.info(f"Default user '{default_user_username}' already exists.")
 
+        # Create admin user if it specifically doesn't exist.
+        admin_username = os.getenv('ADMIN_USER_USERNAME', 'admin')
+        admin_password = os.getenv('ADMIN_USER_PASSWORD', 'admin') # Ensure this is secure or changed
+        if admin_username != default_user_username and not User.query.filter_by(username=admin_username).first():
+            hashed_password_admin = generate_password_hash(admin_password, method='pbkdf2:sha256')
+            admin_user = User(username=admin_username, password=hashed_password_admin, is_admin=True)
+            db.session.add(admin_user)
+            db.session.commit()
+            logging.info(f"Admin user '{admin_username}' created.")
+        elif admin_username != default_user_username :
+             logging.info(f"Admin user '{admin_username}' already exists or is same as default user.")
 
 
 @app.route('/favicon.ico')
@@ -185,11 +248,12 @@ def set_modbus_config():
             yaml.dump(config_data, f, sort_keys=False)
 
         logging.info(f"Admin updated Modbus config in register_config.yaml: IP={ip}, Port={port}")
-        flash("Modbus configuration updated in register_config.yaml. Please restart the application for changes to take full effect.", "success")
-        return jsonify({"message": "Modbus configuration updated in register_config.yaml. A restart is likely required."})
+        # Flash message might not be visible if this is an API call typically handled by JS
+        # flash("Modbus configuration updated in register_config.yaml. Please restart the application for changes to take full effect.", "success")
+        return jsonify({"message": "Modbus configuration updated in register_config.yaml. A restart of the MQTT subscriber and potentially the Flask app (if it caches this config) may be required."})
     except Exception as e:
         logging.error(f"Error updating Modbus config in {config_path}: {e}", exc_info=True)
-        flash(f"Error updating Modbus configuration file: {e}", "error")
+        # flash(f"Error updating Modbus configuration file: {e}", "error")
         return jsonify({"error": f"Failed to update configuration file: {e}"}), 500
 
 
@@ -204,23 +268,34 @@ def login():
         if user and check_password_hash(user.password, password):
             login_user(user)
             logging.info(f"User '{username}' logged in successfully.")
-            return redirect(url_for('index'))
+            # MODIFIED: Redirect to index after successful login
+            next_page = request.args.get('next')
+            return redirect(next_page or url_for('index'))
         else:
             logging.warning(f"Failed login attempt for username: '{username}'.")
             flash('Invalid username or password')
-    return render_template('index.html')
+    # Always render index.html for GET, login form is a modal there
+    return render_template('index.html', is_authenticated=current_user.is_authenticated if current_user else False)
+
 
 @app.route('/logout')
 @login_required
 def logout():
     logging.info(f"User '{current_user.username}' logged out.")
     logout_user()
-    return redirect(url_for('login'))
+    # MODIFIED: Redirect to index which will then show login modal if needed
+    return redirect(url_for('index'))
 
 
 if __name__ == '__main__':
-    start_scheduler()
+    # Load .env variables if not already loaded (e.g., by a run script)
+    from dotenv import load_dotenv
+    load_dotenv()
+    
+    start_scheduler() # Starts the 'delete_old_data' job
     # Use host='0.0.0.0' to make it accessible on the network
-    app.run(debug=True, host='0.0.0.0', port=5001) # Added host and port
+    # Use a different port if 5000 is used by something else (like the MQTT subscriber)
+    app_port = int(os.getenv('FLASK_RUN_PORT', 5001))
+    app.run(debug=True, host=os.getenv('FLASK_RUN_HOST', '0.0.0.0'), port=app_port)
 
 

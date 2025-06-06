@@ -9,22 +9,28 @@ from datetime import datetime, UTC, timedelta, timezone # Import timezone
 import logging # Import logging
 import psycopg2
 import psycopg2.extras
-from dotenv import load_dotenv
+# from dotenv import load_dotenv # Already imported but will be part of the new block
 
-# Load environment variables from .env file
-load_dotenv()
-
-# Import cloud uploader
+# --- Environment Variable Loading ---
+# Assuming this file (live_data.py) is in the 'api' subdirectory
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) 
+dotenv_path = os.path.join(project_root, '.env')
 try:
-    from api.uploadToCloud import upload_to_cloud
-    CLOUD_UPLOAD_AVAILABLE = True
-except ImportError as e:
-    logging.warning(f"⚠️ Cloud uploader not available: {e}. Cloud uploading will be disabled.")
-    CLOUD_UPLOAD_AVAILABLE = False
+    from dotenv import load_dotenv
+    if os.path.exists(dotenv_path):
+        load_dotenv(dotenv_path=dotenv_path, override=True)
+        # Use a unique print statement to confirm which file is loading
+        print(f"✅ api/live_data.py: Environment variables loaded from {dotenv_path}")
+    else:
+        print(f"⚠️ api/live_data.py: .env file not found at {dotenv_path}. Using system environment variables only.")
+except ImportError:
+    print("⚠️ api/live_data.py: python-dotenv not available, using system environment variables only")
+# --- End Environment Variable Loading ---
 
-# Calculate the project root
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-if project_root not in sys.path:
+
+# Calculate the project root # This was for sys.path, can be removed if project_root above is sufficient
+# project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..')) # Redundant with above
+if project_root not in sys.path: # Use project_root defined for dotenv
     sys.path.insert(0, project_root)
 
 # --- Use the new config loader ---
@@ -39,9 +45,9 @@ from api.timezone_config import set_timezone
 POSTGRES_CONFIG = {
     'host': os.getenv('POSTGRES_HOST', 'localhost'),
     'port': int(os.getenv('POSTGRES_PORT', '5432')),
-    'database': os.getenv('POSTGRES_DATABASE', 'vflow_data'),
-    'user': os.getenv('POSTGRES_USER', 'vflow'),
-    'password': os.getenv('POSTGRES_PASSWORD', 'password')
+    'database': os.getenv('POSTGRES_DATABASE', 'sensor_data'), # Default to sensor_data
+    'user': os.getenv('POSTGRES_USER', 'sensor_user'),         # Default to sensor_user
+    'password': os.getenv('POSTGRES_PASSWORD', 'Master123')   # Default to Master123
 }
 POSTGRES_TABLE = os.getenv('POSTGRES_TABLE', 'sensor_data')
 
@@ -117,9 +123,10 @@ def live_data():
     try:
         cursor = connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         
-        # Get the most recent data entry
+        # Get the most recent data entry, including its raw_data, timestamp, and device_id
         query = f"""
-        SELECT * FROM {POSTGRES_TABLE}
+        SELECT raw_data, timestamp as db_timestamp, device_id as db_device_id 
+        FROM {POSTGRES_TABLE}
         ORDER BY timestamp DESC
         LIMIT 1
         """
@@ -127,55 +134,90 @@ def live_data():
         cursor.execute(query)
         result = cursor.fetchone()
         
+        cursor.close()
+        connection.close()
+
         if not result:
             return jsonify({"error": "No data available"}), 404
         
-        # Convert database row to dict and parse the data
-        latest_data = dict(result)
+        db_record = dict(result)
         
-        # Parse raw MQTT data if available
-        processed_data = {}
-        if latest_data.get('raw_data'):
-            parsed_data = parse_mqtt_data(latest_data['raw_data'])
-            if parsed_data and 'raw_data' in parsed_data:
-                # Use the original MQTT data structure
-                mqtt_data = parsed_data['raw_data']
-                if 'data' in mqtt_data:
-                    processed_data = mqtt_data['data']
-                    processed_data['timestamp'] = mqtt_data.get('timestamp', latest_data['timestamp'].isoformat())
-                    processed_data['device_id'] = mqtt_data.get('device_id', latest_data.get('device_id'))
+        if db_record.get('raw_data'):
+            try:
+                # raw_data field should contain the original full JSON string of the MQTT message
+                mqtt_message_obj = json.loads(db_record['raw_data']) if isinstance(db_record['raw_data'], str) else db_record['raw_data']
+                
+                # Ensure the structure matches the user's requirement: {"timestamp": ..., "device_id": ..., "data": {...}}
+                if "timestamp" in mqtt_message_obj and "data" in mqtt_message_obj and "device_id" in mqtt_message_obj:
+                    # Ensure timestamp is an ISO string
+                    if isinstance(mqtt_message_obj["timestamp"], datetime):
+                        mqtt_message_obj["timestamp"] = mqtt_message_obj["timestamp"].isoformat()
+                    return jsonify(mqtt_message_obj)
+                else:
+                    # If raw_data doesn't have the full nested structure, attempt to reconstruct it.
+                    # This might happen if raw_data stores a flatter structure (e.g., from individual sensor messages).
+                    logging.warning(f"raw_data for latest entry has unexpected structure: {mqtt_message_obj}. Attempting reconstruction for /live-data.")
+                    reconstructed_data = {
+                        "timestamp": mqtt_message_obj.get("timestamp") or (db_record['db_timestamp'].isoformat() if db_record.get('db_timestamp') else datetime.now(timezone.utc).isoformat()),
+                        "device_id": mqtt_message_obj.get("device_id") or db_record.get('db_device_id', 'unknown_device'),
+                        # If mqtt_message_obj itself is the data payload (flat dict of sensors)
+                        "data": mqtt_message_obj.get("data", mqtt_message_obj if isinstance(mqtt_message_obj, dict) and not any(k in mqtt_message_obj for k in ["timestamp", "device_id", "data"]) else {})
+                    }
+                    return jsonify(reconstructed_data)
+
+            except json.JSONDecodeError as e:
+                logging.error(f"Error parsing raw_data JSON from DB in /live-data: {e}. Raw data: {db_record['raw_data']}")
+                # Fall through to fallback if JSON parsing fails
+            except Exception as e:
+                logging.error(f"Unexpected error processing raw_data in /live-data: {e}")
+                # Fall through to fallback
+
+        # Fallback: If raw_data is missing or failed to parse, construct from individual DB columns.
+        # This will likely only have a subset of data based on the defined table columns.
+        logging.warning("Falling back to constructing live-data from individual DB columns.")
         
-        # If no raw_data, use direct database fields
-        if not processed_data:
-            processed_data = {
-                'timestamp': latest_data['timestamp'].isoformat() if latest_data.get('timestamp') else None,
-                'device_id': latest_data.get('device_id', 'unknown'),
-                'cl1_soc': latest_data.get('cl1_soc'),
-                'cl2_soc': latest_data.get('cl2_soc'),
-                'cl1_voltage': latest_data.get('cl1_voltage'),
-                'cl2_voltage': latest_data.get('cl2_voltage'),
-                'cl1_current': latest_data.get('cl1_current'),
-                'cl2_current': latest_data.get('cl2_current'),
-                'cl1_temperature': latest_data.get('cl1_temperature'),
-                'cl2_temperature': latest_data.get('cl2_temperature'),
-                'system_power': latest_data.get('system_power'),
-                'system_status': latest_data.get('system_status')
-            }
+        # Mapping from DB column names to the keys expected by sensor.js inside the "data" object.
+        # These DB columns are defined in `api/mqtt_subscriber.py`.
+        # The keys for the "data" object should match `reg.name` from `register_config.yaml`.
+        # This mapping attempts to bridge that. It should align with how `mqtt_subscriber.py` stores data in typed columns.
+        db_to_sensorjs_map = {
+            'cl1_soc': 'SOC1',
+            'cl2_soc': 'SOC2',
+            'cl1_voltage': 'Cluster_1_Voltage',
+            'cl2_voltage': 'Cluster_2_Voltage',
+            'cl1_current': 'Cluster_1_Current',
+            'cl2_current': 'Cluster_2_Current',
+            'cl1_temperature': 'OCV_1', # This mapping was an assumption, align with actual sensor names if different
+            'cl2_temperature': 'OCV_2', # This mapping was an assumption
+            'system_power': 'Total_Cluster_Power',
+            'grid_frequency': 'Grid_Frequency', # If present in your DB schema
+            'system_status': 'System Condition'
+            # Add other direct DB column to sensor.js key mappings here if needed
+        }
         
-        cursor.close()
-        connection.close()
-        
-        return jsonify(processed_data)
+        data_for_fallback = {}
+        for db_col, sensor_js_key in db_to_sensorjs_map.items():
+            if db_record.get(db_col) is not None: # Check if the column exists in the db_record from the query
+                 data_for_fallback[sensor_js_key] = db_record[db_col]
+            elif db_record.get(db_col.upper()) is not None: # Try uppercase as some DBs might return that
+                 data_for_fallback[sensor_js_key] = db_record[db_col.upper()]
+
+
+        fallback_response = {
+            "timestamp": db_record['db_timestamp'].isoformat() if db_record.get('db_timestamp') else datetime.now(timezone.utc).isoformat(),
+            "device_id": db_record.get('db_device_id', 'unknown_device_fallback'),
+            "data": data_for_fallback
+        }
+        return jsonify(fallback_response)
         
     except psycopg2.Error as e:
-        logging.error(f"❌ Database error: {e}")
-        if connection:
-            connection.close()
+        logging.error(f"❌ Database error in /live-data: {e}")
+        # Ensure connection is closed if it was opened
+        # if connection: connection.close() # Already closed or handled by cursor context
         return jsonify({"error": "Database query failed"}), 500
     except Exception as e:
-        logging.error(f"❌ Unexpected error: {e}")
-        if connection:
-            connection.close()
+        logging.error(f"❌ Unexpected error in /live-data: {e}")
+        # if connection: connection.close()
         return jsonify({"error": "Internal server error"}), 500
 
 

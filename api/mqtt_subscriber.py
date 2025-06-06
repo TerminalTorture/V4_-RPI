@@ -12,15 +12,6 @@ Features:
 - Logs all activities
 - Creates database tables automatically
 - Supports both bulk and individual sensor data
-
-Usage:
-    python mqtt_subscriber.py
-
-Requirements:
-    pip install paho-mqtt psycopg2-binary python-dotenv
-
-Environment Configuration:
-    Create a .env file with your database and MQTT settings
 """
 
 import json
@@ -33,13 +24,21 @@ from typing import Dict, Any, Optional
 import signal
 import threading
 
-# Load environment variables
+# --- Environment Variable Loading ---
+# Calculate the project root first (assuming this script is in api/ folder)
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+dotenv_path = os.path.join(project_root, '.env')
+
 try:
     from dotenv import load_dotenv
-    load_dotenv()
-    print("✅ Environment variables loaded from .env file")
+    if os.path.exists(dotenv_path):
+        load_dotenv(dotenv_path=dotenv_path, override=True)
+        print(f"✅ Environment variables loaded from {dotenv_path}")
+    else:
+        print(f"⚠️ .env file not found at {dotenv_path}. Using system environment variables only.")
 except ImportError:
     print("⚠️ python-dotenv not available, using system environment variables only")
+# --- End Environment Variable Loading ---
 
 # MQTT and Database imports
 try:
@@ -67,31 +66,80 @@ class PostgreSQLHandler:
         self.connection = None
         self.cursor = None
         
-        # Database configuration from environment
+        self.db_host = os.getenv('POSTGRES_HOST', 'localhost')
+        self.db_port = int(os.getenv('POSTGRES_PORT', '5432'))
+        self.db_user = os.getenv('POSTGRES_USER', 'sensor_user')
+        self.db_password = os.getenv('POSTGRES_PASSWORD', 'Master123')
+        self.target_database_name = os.getenv('POSTGRES_DATABASE', 'sensor_data')
+        
+        # This db_config will be for the target database
         self.db_config = {
-            'host': os.getenv('POSTGRES_HOST', 'localhost'),
-            'port': int(os.getenv('POSTGRES_PORT', '5432')),
-            'database': os.getenv('POSTGRES_DATABASE', 'vflow_data'),
-            'user': os.getenv('POSTGRES_USER', 'vflow'),
-            'password': os.getenv('POSTGRES_PASSWORD', 'password')
+            'host': self.db_host,
+            'port': self.db_port,
+            'database': self.target_database_name,
+            'user': self.db_user,
+            'password': self.db_password
         }
         
         self.table_name = os.getenv('POSTGRES_TABLE', 'sensor_data')
         
-        logging.info(f"PostgreSQL Handler initialized - Host: {self.db_config['host']}:{self.db_config['port']}, Database: {self.db_config['database']}")
+        logging.info(f"PostgreSQL Handler initialized - Target DB: {self.target_database_name}, User: {self.db_user}")
     
+    def ensure_database_exists(self) -> bool:
+        """Ensures the target database exists, creating it if necessary."""
+        try:
+            # Connect to the default 'postgres' database (or another maintenance DB)
+            # The user must have CREATEDB privileges
+            maintenance_conn = psycopg2.connect(
+                host=self.db_host,
+                port=self.db_port,
+                user=self.db_user,
+                password=self.db_password,
+                dbname='postgres'  # Connect to 'postgres' db to check/create other DBs
+            )
+            maintenance_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+            m_cursor = maintenance_conn.cursor()
+            
+            # Check if the target database exists
+            m_cursor.execute("SELECT 1 FROM pg_database WHERE datname = %s", (self.target_database_name,))
+            exists = m_cursor.fetchone()
+            
+            if not exists:
+                logging.info(f"Database '{self.target_database_name}' does not exist. Attempting to create it...")
+                try:
+                    m_cursor.execute(f"CREATE DATABASE {self.target_database_name}") # Use f-string carefully, ensure target_database_name is safe
+                    logging.info(f"✅ Database '{self.target_database_name}' created successfully.")
+                except psycopg2.Error as create_err:
+                    logging.error(f"❌ Failed to create database '{self.target_database_name}': {create_err}")
+                    # If creation fails, it could be a permissions issue or other SQL error.
+                    # The main connection attempt later will likely fail if the DB wasn't created.
+                    return False # Indicate failure
+            else:
+                logging.info(f"Database '{self.target_database_name}' already exists.")
+            
+            m_cursor.close()
+            maintenance_conn.close()
+            return True # Database exists or was created
+
+        except psycopg2.Error as e:
+            logging.error(f"❌ Error while checking/creating database '{self.target_database_name}': {e}")
+            logging.error(f"  Please ensure user '{self.db_user}' has CREATEDB privilege and can connect to the 'postgres' database.")
+            return False # Indicate failure
+        except Exception as e:
+            logging.error(f"❌ Unexpected error in ensure_database_exists: {e}")
+            return False
+
     def connect(self) -> bool:
         """Connect to PostgreSQL database."""
         try:
             self.connection = psycopg2.connect(**self.db_config)
-            self.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
             self.cursor = self.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
-            logging.info("✅ Connected to PostgreSQL database")
+            logging.info(f"✅ Connected to PostgreSQL database '{self.target_database_name}'")
             return True
             
         except psycopg2.Error as e:
-            logging.error(f"❌ Failed to connect to PostgreSQL: {e}")
+            logging.error(f"❌ Failed to connect to PostgreSQL database '{self.target_database_name}': {e}")
             return False
     
     def disconnect(self):
@@ -104,6 +152,9 @@ class PostgreSQLHandler:
     
     def create_table_if_not_exists(self):
         """Create the sensor data table if it doesn't exist."""
+        if not self.cursor:
+            logging.error("❌ Cannot create table: No database cursor available. Connection might have failed.")
+            return False
         try:
             create_table_sql = f"""
             CREATE TABLE IF NOT EXISTS {self.table_name} (
@@ -139,11 +190,13 @@ class PostgreSQLHandler:
             """
             
             self.cursor.execute(create_table_sql)
-            logging.info(f"✅ Table '{self.table_name}' created or verified")
+            self.connection.autocommit = True 
+            logging.info(f"✅ Table '{self.table_name}' created or verified in database '{self.target_database_name}'")
+            self.connection.autocommit = False
             return True
             
         except psycopg2.Error as e:
-            logging.error(f"❌ Failed to create table: {e}")
+            logging.error(f"❌ Failed to create table '{self.table_name}': {e}")
             return False
     
     def insert_sensor_data(self, data: Dict[str, Any], topic: str, device_id: str = None) -> bool:
@@ -387,14 +440,20 @@ class VFlowMQTTSubscriber:
         """Start the MQTT subscriber."""
         logging.info("🚀 Starting VFlow MQTT Subscriber...")
         
-        # Connect to database
+        # Step 1: Ensure the database exists
+        if not self.db_handler.ensure_database_exists():
+            logging.error(f"❌ Database '{self.db_handler.target_database_name}' does not exist and could not be created. Please check permissions or create it manually. Exiting.")
+            return False # Stop if database cannot be ensured
+
+        # Step 2: Connect to the target database
         if not self.db_handler.connect():
-            logging.error("❌ Failed to connect to database. Exiting.")
+            logging.error(f"❌ Failed to connect to database '{self.db_handler.target_database_name}'. Exiting.")
             return False
         
-        # Create database table
+        # Step 3: Create database table in the target database
         if not self.db_handler.create_table_if_not_exists():
-            logging.error("❌ Failed to create database table. Exiting.")
+            logging.error(f"❌ Failed to create database table '{self.db_handler.table_name}'. Exiting.")
+            self.db_handler.disconnect() # Disconnect if table creation failed
             return False
         
         # Setup and connect MQTT client
@@ -414,6 +473,7 @@ class VFlowMQTTSubscriber:
             
         except Exception as e:
             logging.error(f"❌ Failed to start MQTT client: {e}")
+            self.db_handler.disconnect() # Ensure DB is disconnected on MQTT start failure
             return False
     
     def stop(self):

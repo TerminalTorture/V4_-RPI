@@ -8,6 +8,24 @@ import psycopg2
 import psycopg2.extras
 import json
 import os
+# from dotenv import load_dotenv # Already imported but will be part of the new block
+
+# --- Environment Variable Loading ---
+# Assuming this file (hist_data.py) is in the 'api' subdirectory
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+dotenv_path = os.path.join(project_root, '.env')
+try:
+    from dotenv import load_dotenv
+    if os.path.exists(dotenv_path):
+        load_dotenv(dotenv_path=dotenv_path, override=True)
+        # Use a unique print statement to confirm which file is loading
+        print(f"✅ api/hist_data.py: Environment variables loaded from {dotenv_path}")
+    else:
+        print(f"⚠️ api/hist_data.py: .env file not found at {dotenv_path}. Using system environment variables only.")
+except ImportError:
+    print("⚠️ api/hist_data.py: python-dotenv not available, using system environment variables only")
+# --- End Environment Variable Loading ---
+
 
 # --- Use config loader --- 
 from api.config_loader import REGISTER_CONFIG
@@ -20,19 +38,19 @@ def get_db_connection():
     """Get PostgreSQL database connection"""
     try:
         # Load database configuration from environment
-        from dotenv import load_dotenv
-        load_dotenv()
+        # from dotenv import load_dotenv # load_dotenv() is now at the top of the file
+        # load_dotenv() # No longer needed here
         
         conn = psycopg2.connect(
-            host=os.getenv('DB_HOST', 'localhost'),
-            database=os.getenv('DB_NAME', 'vflow_data'),
-            user=os.getenv('DB_USER', 'vflow_user'),
-            password=os.getenv('DB_PASSWORD', 'vflow_password'),
-            port=os.getenv('DB_PORT', 5432)
+            host=os.getenv('POSTGRES_HOST', 'localhost'),
+            database=os.getenv('POSTGRES_DATABASE', 'sensor_data'), # Default to sensor_data
+            user=os.getenv('POSTGRES_USER', 'sensor_user'),         # Default to sensor_user
+            password=os.getenv('POSTGRES_PASSWORD', 'Master123'),   # Default to Master123
+            port=int(os.getenv('POSTGRES_PORT', '5432'))          # Ensure port is int
         )
         return conn
     except Exception as e:
-        logging.error(f"Failed to connect to PostgreSQL: {e}")
+        logging.error(f"Failed to connect to PostgreSQL in hist_data: {e}")
         return None
 
 def parse_mqtt_data(raw_data):

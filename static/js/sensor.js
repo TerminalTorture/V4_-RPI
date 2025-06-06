@@ -299,8 +299,8 @@ function fetchAllLiveDataAndUpdateDisplays() {
                      return; 
                 }
 
-
-                const value = data[reg.name];
+                // Access sensor values from the nested data.data object
+                const value = data.data ? data.data[reg.name] : undefined;
                 const unit = reg.unit || '';
                 // Set scale to 1 for all registers as API provides pre-scaled data.
                 let scale = 1;
@@ -308,7 +308,7 @@ function fetchAllLiveDataAndUpdateDisplays() {
                 const decimals = reg.ui.decimals !== undefined ? reg.ui.decimals : ((reg.scale && reg.scale.toString().includes('.')) ? reg.scale.toString().split('.')[1].length : 2); // Use reg.scale for decimals calculation if needed, but not for scaling value
 
                 if (value === undefined) {
-                    // console.warn(`No data received for register: ${reg.name}`);
+                    // console.warn(`No data received for register: ${reg.name} in data.data object`);
                 }
 
                 const components = Array.isArray(reg.ui.component) ? reg.ui.component : [reg.ui.component];
