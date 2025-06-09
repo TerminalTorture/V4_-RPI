@@ -73,33 +73,48 @@ document.addEventListener("DOMContentLoaded", function () {
         // Only load these elements and set up functionality for admins
         if (download30DaysButton && downloadRange && customDateInputs && variableCheckboxes) {
             // ✅ Fetch available variables and populate checkboxes
-            fetch("/api/get-variables")
+            fetch("/api/registers/definitions")
                 .then(response => {
-                    if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+                    if (!response.ok) throw new Error(`HTTP Error: ${response.status} fetching register definitions`);
                     return response.json();
                 })
-                .then(variables => {
+                .then(definitionsResponse => {
+                    if (!definitionsResponse || !Array.isArray(definitionsResponse.registers)) {
+                        console.error("❌ Invalid format for register definitions:", definitionsResponse);
+                        variableCheckboxes.innerHTML = "<p class='text-red-500'>Could not load variables.</p>";
+                        return;
+                    }
+                    const variables = definitionsResponse.registers.map(reg => reg.name);
+                    
                     variableCheckboxes.innerHTML = ""; // Clear previous content
                     variables.forEach(variable => {
+                        if (!variable) return; // Skip if variable name is undefined or empty
                         let checkboxContainer = document.createElement("div");
-                        checkboxContainer.classList.add("checkbox-container");
+                        checkboxContainer.classList.add("checkbox-container", "flex", "items-center", "mb-1");
 
                         let checkbox = document.createElement("input");
                         checkbox.type = "checkbox";
                         checkbox.value = variable;
                         checkbox.checked = true; // Default: all selected
-                        checkbox.id = `var-${variable}`;
+                        checkbox.id = `var-${variable.replace(/\W/g, '_')}`; // Sanitize ID
+                        checkbox.classList.add("form-checkbox", "h-4", "w-4", "text-primary", "border-gray-300", "rounded", "focus:ring-primary");
 
                         let label = document.createElement("label");
-                        label.htmlFor = `var-${variable}`;
+                        label.htmlFor = checkbox.id;
                         label.innerText = variable;
+                        label.classList.add("ml-2", "text-sm", "text-on-surface");
 
                         checkboxContainer.appendChild(checkbox);
                         checkboxContainer.appendChild(label);
                         variableCheckboxes.appendChild(checkboxContainer);
                     });
                 })
-                .catch(error => console.error("❌ Error fetching variables:", error));
+                .catch(error => {
+                    console.error("❌ Error fetching or processing register definitions for export variables:", error);
+                    if (variableCheckboxes) {
+                        variableCheckboxes.innerHTML = "<p class='text-red-500'>Error loading variables.</p>";
+                    }
+                });
 
             // ✅ Show custom date inputs when 'Custom' is selected
             downloadRange.addEventListener("change", function () {

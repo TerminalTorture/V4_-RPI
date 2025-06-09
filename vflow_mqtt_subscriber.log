@@ -8,3 +8,201 @@
 2025-06-04 16:08:36,378 - INFO - VFlow MQTT Subscriber initialized - Broker: 192.168.137.69:1883
 2025-06-04 16:09:31,714 - INFO - PostgreSQL Handler initialized - Host: localhost:5432, Database: vflow_data
 2025-06-04 16:09:31,714 - INFO - VFlow MQTT Subscriber initialized - Broker: 192.168.0.89:1883
+2025-06-06 16:26:42,869 - INFO - PostgreSQL Handler initialized - Target DB: sensor_data_rpi, User: sensor_user
+2025-06-06 16:26:42,869 - INFO - VFlow MQTT Subscriber initialized - Broker: 192.168.0.89:1883
+2025-06-06 16:26:42,965 - INFO - Database 'sensor_data_rpi' already exists.
+2025-06-06 16:26:52,104 - INFO - PostgreSQL Handler initialized - Target DB: sensor_data_rpi, User: sensor_user
+2025-06-06 16:26:52,104 - INFO - VFlow MQTT Subscriber initialized - Broker: 192.168.0.89:1883
+2025-06-06 16:26:52,170 - INFO - Database 'sensor_data_rpi' already exists.
+2025-06-06 16:27:11,374 - INFO - PostgreSQL Handler initialized - Target DB: sensor_data_rpi, User: sensor_user
+2025-06-06 16:27:11,374 - INFO - VFlow MQTT Subscriber initialized - Broker: 192.168.0.89:1883
+2025-06-06 16:27:11,434 - INFO - Database 'sensor_data_rpi' already exists.
+2025-06-06 16:31:14,191 - INFO - PostgreSQL Handler initialized - Target DB: sensor_data_rpi, User: sensor_user
+2025-06-06 16:31:14,191 - INFO - MQTT Subscriber initialized - Broker: 192.168.0.89:1883
+2025-06-06 16:31:14,191 - INFO - SUBSCRIBER_STARTING: Starting VFlow MQTT Subscriber...
+2025-06-06 16:31:14,238 - INFO - Database 'sensor_data_rpi' already exists.
+2025-06-06 16:31:14,276 - INFO - DB_CONNECT_SUCCESS: Connected to PostgreSQL database 'sensor_data_rpi'
+2025-06-06 16:31:14,302 - ERROR - TABLE_CREATE_FAIL: Failed to create table 'sensor_data': set_session cannot be used inside a transaction
+2025-06-06 16:31:14,302 - ERROR - SUBSCRIBER_FAIL: Table 'sensor_data' creation failed. Exiting.
+2025-06-06 16:31:14,303 - INFO - DB_DISCONNECTED: Disconnected from PostgreSQL database
+2025-06-06 16:32:41,458 - INFO - PostgreSQL Handler initialized - Target DB: sensor_data_rpi, User: sensor_user
+2025-06-06 16:32:41,459 - INFO - MQTT Subscriber initialized - Broker: 192.168.0.89:1883
+2025-06-06 16:32:41,459 - INFO - SUBSCRIBER_STARTING: Starting VFlow MQTT Subscriber...
+2025-06-06 16:32:41,503 - INFO - Database 'sensor_data_rpi' already exists.
+2025-06-06 16:32:41,540 - INFO - DB_CONNECT_SUCCESS: Connected to PostgreSQL database 'sensor_data_rpi'
+2025-06-06 16:32:41,558 - ERROR - TABLE_CREATE_FAIL: Failed to create table 'sensor_data': set_session cannot be used inside a transaction
+2025-06-06 16:32:41,558 - ERROR - SUBSCRIBER_FAIL: Table 'sensor_data' creation failed. Exiting.
+2025-06-06 16:32:41,559 - INFO - DB_DISCONNECTED: Disconnected from PostgreSQL database
+2025-06-06 16:34:14,241 - INFO - PostgreSQL Handler initialized - Target DB: sensor_data_rpi, User: sensor_user
+2025-06-06 16:34:14,242 - INFO - MQTT Subscriber initialized - Broker: 192.168.0.89:1883
+2025-06-06 16:34:14,242 - INFO - SUBSCRIBER_STARTING: Starting VFlow MQTT Subscriber...
+2025-06-06 16:34:14,305 - INFO - Database 'sensor_data_rpi' already exists.
+2025-06-06 16:34:14,363 - INFO - DB_CONNECT_SUCCESS: Connected to PostgreSQL database 'sensor_data_rpi'
+2025-06-06 16:34:14,377 - INFO - TABLE_CREATE_SUCCESS: Table 'sensor_data' created/verified in 'sensor_data_rpi'
+2025-06-06 16:34:14,378 - INFO - MQTT client configured
+2025-06-06 16:34:14,417 - INFO - SUBSCRIBER_STARTED: VFlow MQTT Subscriber started successfully!
+2025-06-06 16:34:14,429 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:14,430 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:14,431 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:14,432 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:15,459 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:16,486 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:16,486 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:16,487 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:16,487 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:17,508 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:18,540 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:18,542 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:18,544 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:18,546 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:19,584 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:20,617 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:20,620 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:20,623 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:20,625 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:21,647 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:22,694 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:22,695 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:22,695 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:22,696 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:23,737 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:24,761 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:24,764 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:24,767 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:24,768 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:25,796 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:26,844 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:26,846 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:26,846 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:26,847 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:27,888 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:28,932 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:28,934 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:28,936 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:28,938 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:29,956 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:30,977 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:30,978 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:30,978 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:30,979 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:32,000 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:33,028 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:33,029 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:33,030 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:33,030 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:34,062 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:35,109 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:35,111 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:35,113 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:35,114 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:36,148 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:37,176 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:37,177 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:37,177 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:37,178 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:38,198 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:39,242 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:39,243 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:39,244 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:39,244 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:40,283 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:41,318 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:41,318 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:41,319 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:41,319 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:42,367 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:43,405 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:43,406 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:43,406 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:43,406 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:44,449 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:45,477 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:45,479 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:45,481 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:45,482 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:46,501 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:47,536 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:47,539 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:47,541 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:47,544 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:48,568 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:49,596 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:49,598 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:49,600 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:49,603 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:50,710 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:51,732 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:51,733 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:51,734 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:51,734 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:52,755 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:53,776 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:53,776 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:53,776 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:53,776 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:54,809 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:55,852 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:55,853 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:55,853 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:55,854 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:56,887 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:57,910 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:57,911 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:57,911 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:57,912 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:34:58,933 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:34:59,966 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:34:59,966 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:34:59,967 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:34:59,967 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:35:00,990 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:35:02,011 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:35:02,012 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:35:02,013 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:35:02,014 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:35:03,037 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:35:04,095 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:35:04,096 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:35:04,096 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:35:04,097 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:35:05,125 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:35:06,150 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:35:06,151 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:35:06,151 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:35:06,152 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:35:06,884 - INFO - SIGNAL_RECEIVED: Signal 2
+2025-06-06 16:35:07,145 - INFO - SIGNAL_RECEIVED: Signal 2
+2025-06-06 16:35:07,182 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:35:07,375 - INFO - SIGNAL_RECEIVED: Signal 2
+2025-06-06 16:35:07,452 - INFO - SUBSCRIBER_STOPPING: Stopping VFlow MQTT Subscriber...
+2025-06-06 16:35:08,184 - INFO - DB_DISCONNECTED: Disconnected from PostgreSQL database
+2025-06-06 16:35:08,185 - INFO - SUBSCRIBER_STOPPED: VFlow MQTT Subscriber stopped
+2025-06-06 16:41:43,032 - INFO - PostgreSQL Handler initialized - Target DB: sensor_data_rpi, User: sensor_user
+2025-06-06 16:41:43,034 - INFO - MQTT Subscriber initialized - Broker: 192.168.0.89:1883
+2025-06-06 16:41:43,034 - INFO - SUBSCRIBER_STARTING: Starting VFlow MQTT Subscriber...
+2025-06-06 16:41:43,079 - INFO - Database 'sensor_data_rpi' already exists.
+2025-06-06 16:41:43,119 - INFO - DB_CONNECT_SUCCESS: Connected to PostgreSQL database 'sensor_data_rpi'
+2025-06-06 16:41:43,122 - INFO - TABLE_CREATE_SUCCESS: Table 'sensor_data' created/verified in 'sensor_data_rpi'
+2025-06-06 16:41:43,122 - INFO - MQTT client configured
+2025-06-06 16:41:43,160 - INFO - SUBSCRIBER_STARTED: VFlow MQTT Subscriber started successfully!
+2025-06-06 16:41:43,166 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:41:43,181 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:41:43,181 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:41:43,181 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:41:44,191 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:41:45,211 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:41:45,213 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:41:45,216 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:41:45,218 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:41:46,253 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:41:47,274 - INFO - MQTT_CONNECT_SUCCESS: Connected to MQTT broker 192.168.0.89:1883
+2025-06-06 16:41:47,275 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/data/bulk
+2025-06-06 16:41:47,276 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/sensors/+
+2025-06-06 16:41:47,276 - INFO - MQTT_SUBSCRIBED: Subscribed to topic: vflow/status
+2025-06-06 16:41:48,319 - WARNING - MQTT_UNEXPECTED_DISCONNECT: Reason code: Unspecified error. Attempting reconnect...
+2025-06-06 16:41:48,809 - INFO - SIGNAL_RECEIVED: Signal 2
+2025-06-06 16:41:49,035 - INFO - SIGNAL_RECEIVED: Signal 2
+2025-06-06 16:41:49,184 - INFO - SUBSCRIBER_STOPPING: Stopping VFlow MQTT Subscriber...
+2025-06-06 16:41:49,321 - INFO - SIGNAL_RECEIVED: Signal 2
+2025-06-06 16:41:49,323 - INFO - DB_DISCONNECTED: Disconnected from PostgreSQL database
+2025-06-06 16:41:49,335 - INFO - SUBSCRIBER_STOPPED: VFlow MQTT Subscriber stopped

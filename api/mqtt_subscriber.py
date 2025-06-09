@@ -24,6 +24,9 @@ from typing import Dict, Any, Optional
 import signal
 import threading
 
+# --- Get a specific logger for this module ---
+logger = logging.getLogger(__name__) # Use a module-specific logger
+
 # --- Environment Variable Loading ---
 # Calculate the project root first (assuming this script is in api/ folder)
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -33,11 +36,11 @@ try:
     from dotenv import load_dotenv
     if os.path.exists(dotenv_path):
         load_dotenv(dotenv_path=dotenv_path, override=True)
-        print(f"✅ Environment variables loaded from {dotenv_path}")
+        logger.info(f"✅ Environment variables loaded from {dotenv_path}")
     else:
-        print(f"⚠️ .env file not found at {dotenv_path}. Using system environment variables only.")
+        logger.warning(f"⚠️ .env file not found at {dotenv_path}. Using system environment variables only.")
 except ImportError:
-    print("⚠️ python-dotenv not available, using system environment variables only")
+    logger.warning("⚠️ python-dotenv not available, using system environment variables only")
 # --- End Environment Variable Loading ---
 
 # MQTT and Database imports
@@ -45,7 +48,7 @@ try:
     import paho.mqtt.client as mqtt
     MQTT_AVAILABLE = True
 except ImportError:
-    print("❌ paho-mqtt not available. Install with: pip install paho-mqtt")
+    logger.error("❌ paho-mqtt not available. Install with: pip install paho-mqtt")
     sys.exit(1)
 
 try:
@@ -54,7 +57,7 @@ try:
     from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
     POSTGRESQL_AVAILABLE = True
 except ImportError:
-    print("❌ psycopg2 not available. Install with: pip install psycopg2-binary")
+    logger.error("❌ psycopg2 not available. Install with: pip install psycopg2-binary")
     sys.exit(1)
 
 
@@ -83,7 +86,7 @@ class PostgreSQLHandler:
         
         self.table_name = os.getenv('POSTGRES_TABLE', 'sensor_data')
         
-        logging.info(f"PostgreSQL Handler initialized - Target DB: {self.target_database_name}, User: {self.db_user}")
+        logger.info(f"PostgreSQL Handler initialized - Target DB: {self.target_database_name}, User: {self.db_user}")
     
     def ensure_database_exists(self) -> bool:
         """Ensures the target database exists, creating it if necessary."""
@@ -105,28 +108,28 @@ class PostgreSQLHandler:
             exists = m_cursor.fetchone()
             
             if not exists:
-                logging.info(f"Database '{self.target_database_name}' does not exist. Attempting to create it...")
+                logger.info(f"Database '{self.target_database_name}' does not exist. Attempting to create it...")
                 try:
                     m_cursor.execute(f"CREATE DATABASE {self.target_database_name}") # Use f-string carefully, ensure target_database_name is safe
-                    logging.info(f"✅ Database '{self.target_database_name}' created successfully.")
+                    logger.info(f"DB_CREATE_SUCCESS: Database '{self.target_database_name}' created successfully.")
                 except psycopg2.Error as create_err:
-                    logging.error(f"❌ Failed to create database '{self.target_database_name}': {create_err}")
+                    logger.error(f"DB_CREATE_FAIL: Failed to create database '{self.target_database_name}': {create_err}")
                     # If creation fails, it could be a permissions issue or other SQL error.
                     # The main connection attempt later will likely fail if the DB wasn't created.
                     return False # Indicate failure
             else:
-                logging.info(f"Database '{self.target_database_name}' already exists.")
+                logger.info(f"Database '{self.target_database_name}' already exists.")
             
             m_cursor.close()
             maintenance_conn.close()
             return True # Database exists or was created
 
         except psycopg2.Error as e:
-            logging.error(f"❌ Error while checking/creating database '{self.target_database_name}': {e}")
-            logging.error(f"  Please ensure user '{self.db_user}' has CREATEDB privilege and can connect to the 'postgres' database.")
+            logger.error(f"DB_CHECK_FAIL: Error while checking/creating database '{self.target_database_name}': {e}")
+            logger.error(f"  Please ensure user '{self.db_user}' has CREATEDB privilege and can connect to the 'postgres' database.")
             return False # Indicate failure
         except Exception as e:
-            logging.error(f"❌ Unexpected error in ensure_database_exists: {e}")
+            logger.error(f"UNEXPECTED_DB_CHECK_ERR: Unexpected error in ensure_database_exists: {e}")
             return False
 
     def connect(self) -> bool:
@@ -135,11 +138,11 @@ class PostgreSQLHandler:
             self.connection = psycopg2.connect(**self.db_config)
             self.cursor = self.connection.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             
-            logging.info(f"✅ Connected to PostgreSQL database '{self.target_database_name}'")
+            logger.info(f"DB_CONNECT_SUCCESS: Connected to PostgreSQL database '{self.target_database_name}'")
             return True
             
         except psycopg2.Error as e:
-            logging.error(f"❌ Failed to connect to PostgreSQL database '{self.target_database_name}': {e}")
+            logger.error(f"DB_CONNECT_FAIL: Failed to connect to PostgreSQL database '{self.target_database_name}': {e}")
             return False
     
     def disconnect(self):
@@ -148,12 +151,12 @@ class PostgreSQLHandler:
             self.cursor.close()
         if self.connection:
             self.connection.close()
-        logging.info("📡 Disconnected from PostgreSQL database")
+        logger.info("DB_DISCONNECTED: Disconnected from PostgreSQL database")
     
     def create_table_if_not_exists(self):
         """Create the sensor data table if it doesn't exist."""
         if not self.cursor:
-            logging.error("❌ Cannot create table: No database cursor available. Connection might have failed.")
+            logger.error("TABLE_CREATE_FAIL: Cannot create table: No database cursor. Connection might have failed.")
             return False
         try:
             create_table_sql = f"""
@@ -190,17 +193,28 @@ class PostgreSQLHandler:
             """
             
             self.cursor.execute(create_table_sql)
-            self.connection.autocommit = True 
-            logging.info(f"✅ Table '{self.table_name}' created or verified in database '{self.target_database_name}'")
-            self.connection.autocommit = False
+            # If the connection is not in autocommit mode (default), we need to commit DDL.
+            if not self.connection.autocommit:
+                self.connection.commit()
+            
+            logger.info(f"TABLE_CREATE_SUCCESS: Table '{self.table_name}' created/verified in '{self.target_database_name}'")
             return True
             
         except psycopg2.Error as e:
-            logging.error(f"❌ Failed to create table '{self.table_name}': {e}")
+            logger.error(f"TABLE_CREATE_FAIL: Failed to create table '{self.table_name}': {e}")
+            # If an error occurs during DDL, a rollback might be good practice 
+            # if the connection is part of a larger transaction context, though here each call is somewhat standalone.
+            try:
+                self.connection.rollback() # Rollback on error to clear the transaction state
+            except psycopg2.Error as rb_err:
+                logger.error(f"TABLE_CREATE_ROLLBACK_FAIL: Failed to rollback: {rb_err}")
             return False
     
     def insert_sensor_data(self, data: Dict[str, Any], topic: str, device_id: str = None) -> bool:
         """Insert sensor data into PostgreSQL database."""
+        if not self.cursor or not self.connection:
+            logger.error("DATA_INSERT_FAIL: No database cursor or connection available.")
+            return False
         try:
             # Prepare timestamp
             timestamp = data.get('timestamp')
@@ -221,10 +235,10 @@ class PostgreSQLHandler:
                 'timestamp': parsed_timestamp,
                 'device_id': device_id,
                 'topic': topic,
-                'raw_data': json.dumps(data)
+                'raw_data': json.dumps(data) # Store the original complete data object
             }
             
-            # Map known sensor fields
+            # Map known sensor fields for individual columns (optional, raw_data has everything)
             field_mapping = {
                 'cl1_soc': 'cl1_soc',
                 'cl2_soc': 'cl2_soc',
@@ -239,16 +253,20 @@ class PostgreSQLHandler:
                 'system_status': 'system_status'
             }
             
-            # Extract sensor data if available
-            sensor_data = data.get('data', data)  # Handle both bulk format and direct format
+            # The MQTT data is expected in format: {"timestamp": ..., "device_id": ..., "data": {sensors...}}
+            # or flat if it's not a "bulk" like message originally.
+            # The insert_sensor_data method receives the full payload (data arg).
+            # If data['data'] exists, use it, otherwise use data itself for sensor values.
+            actual_sensor_data_payload = data.get('data', data) 
             
-            for field_name, db_column in field_mapping.items():
-                if field_name in sensor_data and sensor_data[field_name] is not None:
-                    try:
-                        sensor_fields[db_column] = float(sensor_data[field_name])
-                    except (ValueError, TypeError):
-                        # If not numeric, store in raw_data only
-                        pass
+            if isinstance(actual_sensor_data_payload, dict):
+                for field_name, db_column in field_mapping.items():
+                    if field_name in actual_sensor_data_payload and actual_sensor_data_payload[field_name] is not None:
+                        try:
+                            sensor_fields[db_column] = float(actual_sensor_data_payload[field_name])
+                        except (ValueError, TypeError):
+                            # If not numeric, store in raw_data only (already handled by raw_data field)
+                            pass # logging.debug(f"Value for {field_name} is not floatable, relying on raw_data.")
             
             # Build INSERT query
             columns = ', '.join(sensor_fields.keys())
@@ -261,17 +279,34 @@ class PostgreSQLHandler:
             ON CONFLICT (timestamp, device_id) DO UPDATE SET
                 raw_data = EXCLUDED.raw_data,
                 topic = EXCLUDED.topic
-            """
+                -- Update other specific columns if needed, e.g.:
+                -- cl1_soc = EXCLUDED.cl1_soc, ... (if they are part of sensor_fields and EXCLUDED)
+            """ # Ensure all columns in sensor_fields are actually in the table definition for direct assignment
             
             self.cursor.execute(insert_sql, values)
-            logging.debug(f"📊 Inserted sensor data for device {device_id}")
+            
+            # If connection is not in autocommit mode, commit the insert
+            if not self.connection.autocommit:
+                self.connection.commit()
+                
+            logger.debug(f"DATA_INSERTED: Sensor data for device {device_id} into {self.table_name}")
             return True
             
         except psycopg2.Error as e:
-            logging.error(f"❌ Failed to insert sensor data: {e}")
+            logger.error(f"DATA_INSERT_FAIL: Failed to insert sensor data into {self.table_name}: {e}")
+            try:
+                self.connection.rollback() # Rollback on error
+            except psycopg2.Error as rb_err:
+                logger.error(f"INSERT_ROLLBACK_FAIL: Failed to rollback: {rb_err}")
             return False
         except Exception as e:
-            logging.error(f"❌ Unexpected error inserting data: {e}")
+            logger.error(f"UNEXPECTED_INSERT_ERR: Unexpected error inserting data into {self.table_name}: {e}")
+            # Also attempt rollback for generic exceptions if connection might be in a transaction
+            if self.connection and not self.connection.closed and self.connection.status != psycopg2.extensions.STATUS_BEGIN:
+                try:
+                    self.connection.rollback()
+                except psycopg2.Error as rb_err:
+                    logger.error(f"UNEXPECTED_INSERT_ROLLBACK_FAIL: {rb_err}")
             return False
     
     def get_latest_data(self, limit: int = 10) -> list:
@@ -289,7 +324,7 @@ class PostgreSQLHandler:
             return [dict(row) for row in results]
             
         except psycopg2.Error as e:
-            logging.error(f"❌ Failed to retrieve data: {e}")
+            logger.error(f"❌ Failed to retrieve data: {e}")
             return []
 
 
@@ -329,7 +364,7 @@ class VFlowMQTTSubscriber:
             'start_time': None
         }
         
-        logging.info(f"VFlow MQTT Subscriber initialized - Broker: {self.broker_host}:{self.broker_port}")
+        logger.info(f"MQTT Subscriber initialized - Broker: {self.broker_host}:{self.broker_port}")
     
     def setup_mqtt_client(self):
         """Setup MQTT client with callbacks."""
@@ -345,31 +380,96 @@ class VFlowMQTTSubscriber:
         if self.username and self.password:
             self.mqtt_client.username_pw_set(self.username, self.password)
         
-        logging.info("MQTT client configured")
+        logger.info("MQTT client configured")
     
-    def on_connect(self, client, userdata, flags, reason_code, properties=None):
+    def on_connect(self, client, userdata, flags, rc, properties=None):
         """Callback for when the client receives a CONNACK response."""
-        if reason_code == 0:
-            logging.info(f"✅ Connected to MQTT broker {self.broker_host}:{self.broker_port}")
-            
+        # reason_code is aliased to rc for clarity with older Paho versions if seen in examples
+        # but for VERSION2, rc is an MQTTReasonCode object or int.
+        actual_reason_code = rc 
+
+        connect_successful = False
+        log_rc_part = str(actual_reason_code)
+
+        if isinstance(actual_reason_code, int):
+            if actual_reason_code == 0:
+                connect_successful = True
+            log_rc_part = f"int({actual_reason_code}) - {mqtt.connack_string(actual_reason_code)}"
+        elif hasattr(actual_reason_code, 'value') and hasattr(actual_reason_code, 'getName'): # MQTTv5 ReasonCode
+            if actual_reason_code.value == 0:
+                connect_successful = True
+            log_rc_part = f"{actual_reason_code.getName()} (value: {actual_reason_code.value})"
+        else: # Unknown type
+            log_rc_part = f"unknown_type({actual_reason_code})"
+
+        if connect_successful:
+            logger.info(f"MQTT_CONNECT_SUCCESS: Connected to MQTT broker {self.broker_host}:{self.broker_port} (Reason: {log_rc_part})")
             # Subscribe to all VFlow topics
             for topic in self.topics:
                 client.subscribe(topic, self.qos_level)
-                logging.info(f"📡 Subscribed to topic: {topic}")
+                # on_subscribe will log individual subscription results
         else:
-            logging.error(f"❌ Failed to connect to MQTT broker. Reason code: {reason_code}")
+            logger.error(f"MQTT_CONNECT_FAIL: Failed to connect to MQTT broker. Reason: {log_rc_part}")
     
     def on_disconnect(self, client, userdata, flags, reason_code, properties=None):
         """Callback for when the client disconnects."""
-        if reason_code != 0:
-            logging.warning(f"⚠️ Unexpected MQTT disconnection. Reason code: {reason_code}")
-            logging.info("🔄 Attempting to reconnect...")
-        else:
-            logging.info("📡 Disconnected from MQTT broker")
+        # flags:  can be used to get additional disconnect information for MQTT V5.
+        # For V3.1.1 it's not used beyond being passed.
+        # reason_code: is an MQTTReasonCode object or int.
+        # properties: MQTT V5 properties.
+
+        actual_rc = reason_code # Use the correct variable name
+        rc_value_for_check = -1 # Default to error, assuming 0 is clean disconnect
+        log_message_rc_part = str(actual_rc) # Default to string of actual_rc
+
+        if isinstance(actual_rc, int):
+            rc_value_for_check = actual_rc
+            err_str = mqtt.error_string(actual_rc) if actual_rc != 0 else "Clean disconnect"
+            log_message_rc_part = f"int({actual_rc} - '{err_str}')" 
+        elif hasattr(actual_rc, 'value') and hasattr(actual_rc, 'getName'): # MQTTv5 ReasonCode
+            rc_value_for_check = actual_rc.value
+            log_message_rc_part = f"{actual_rc.getName()} (value: {rc_value_for_check})"
+        else: # Unknown type, treat as error
+            log_message_rc_part = f"unknown_type({actual_rc})"
+
+        # Check if it was an unexpected disconnect (rc_value_for_check != 0)
+        # or if it was a clean disconnect initiated by the client (self.running is False)
+        if rc_value_for_check != 0 and self.running:
+            logger.warning(f"MQTT_UNEXPECTED_DISCONNECT: Reason: {log_message_rc_part}. Attempting reconnect...")
+            if flags:
+                logger.debug(f"Disconnect flags: {flags}")
+            if properties:
+                 logger.debug(f"Disconnect properties: {properties}")
+        elif rc_value_for_check == 0:
+            logger.info(f"MQTT_DISCONNECTED_CLEANLY: Reason: {log_message_rc_part}.")
+        else: # Disconnected, but self.running is False (i.e., we called stop())
+            logger.info(f"MQTT_DISCONNECTED_EXPECTEDLY (subscriber stopping): Reason: {log_message_rc_part}.")
     
-    def on_subscribe(self, client, userdata, mid, reason_code_list, properties=None):
+    def on_subscribe(self, client, userdata, mid, granted_qos_list, properties=None):
         """Callback for when subscription is acknowledged."""
-        logging.debug(f"✅ Subscription acknowledged - Message ID: {mid}")
+        # reason_code_list was the old name, now it's granted_qos_list for VERSION2 (or reason_codes in some contexts)
+        # Paho docs say: granted_qos (for subscribe) or reason_codes (for subscribe with reason codes)
+        # For on_subscribe, it's reason_code_list (an array of MQTTReasonCode objects or ints)
+        # Let's assume it's a list. The original `mid, reason_code_list, properties` seems more aligned with some docs for V2.
+        # The `client.subscribe()` call does not specify protocol version for subscribe options.
+        # Let's stick to reason_code_list as it might be more general for V2.
+        # The variable name `granted_qos_list` is often used when reason codes are not the focus.
+        # If `reason_code_list` truly contains `MQTTReasonCode` objects:
+        processed_codes = []
+        if isinstance(granted_qos_list, list):
+            for i, code in enumerate(granted_qos_list):
+                if hasattr(code, 'value') and hasattr(code, 'getName'): # MQTTv5 ReasonCode object
+                    processed_codes.append(f"Topic {i}: {code.getName()} (QoS granted/Reason: {code.value})")
+                elif isinstance(code, int): # Integer (likely QoS level or simple reason code)
+                    processed_codes.append(f"Topic {i}: QoS/Reason int({code})")
+                else:
+                    processed_codes.append(f"Topic {i}: Unknown type ({code})")
+            logger.info(f"MQTT_SUB_ACK: Subscription acknowledged - MID: {mid}, Results: [{', '.join(processed_codes)}]")
+        else: # If it's not a list (e.g. single int for older style or single subscription)
+             logger.info(f"MQTT_SUB_ACK: Subscription acknowledged - MID: {mid}, QoS/Reason: {granted_qos_list}")
+        
+        if properties:
+            logger.debug(f"Subscribe properties: {properties}")
     
     def on_message(self, client, userdata, msg):
         """Callback for when a message is received."""
@@ -377,15 +477,24 @@ class VFlowMQTTSubscriber:
             self.stats['messages_received'] += 1
             
             topic = msg.topic
-            payload = msg.payload.decode('utf-8')
+            payload_bytes = msg.payload # Keep as bytes first for inspection
             
-            logging.debug(f"📨 Received message on topic: {topic}")
+            # Log the raw payload as received (e.g., as a repr or decoded with error handling)
+            try:
+                payload_str_for_log = payload_bytes.decode('utf-8')
+            except UnicodeDecodeError:
+                payload_str_for_log = repr(payload_bytes) # Show bytes if not valid UTF-8
+
+            logger.debug(f"MQTT_MSG_RECV: Topic: {topic}, Raw Payload: '{payload_str_for_log}'")
             
+            # Decode payload for JSON parsing
+            payload = payload_bytes.decode('utf-8') # This is where UnicodeDecodeError might happen if not UTF-8
+                        
             # Parse JSON payload
             try:
                 data = json.loads(payload)
             except json.JSONDecodeError as e:
-                logging.error(f"❌ Failed to parse JSON message: {e}")
+                logger.error(f"MQTT_JSON_PARSE_FAIL: {e} (for payload: '{payload}')") # Log the payload that failed
                 self.stats['errors'] += 1
                 return
             
@@ -397,18 +506,18 @@ class VFlowMQTTSubscriber:
             elif '/sensors/' in topic:
                 success = self.process_individual_sensor(data, topic)
             else:
-                logging.warning(f"⚠️ Unknown topic pattern: {topic}")
+                logger.warning(f"MQTT_UNKNOWN_TOPIC: {topic}")
                 success = False
             
             if success:
                 self.stats['data_points_stored'] += 1
-                logging.debug(f"📊 Data stored successfully from topic: {topic}")
+                logger.debug(f"DB_STORE_SUCCESS: Data stored from topic: {topic}")
             else:
                 self.stats['errors'] += 1
-                logging.error(f"❌ Failed to store data from topic: {topic}")
+                logger.error(f"DB_STORE_FAIL: Failed to store data from topic: {topic}")
         
         except Exception as e:
-            logging.error(f"❌ Error processing message: {e}")
+            logger.error(f"MQTT_MSG_PROCESS_FAIL: {e}")
             self.stats['errors'] += 1
     
     def process_bulk_data(self, data: Dict[str, Any], topic: str) -> bool:
@@ -419,7 +528,7 @@ class VFlowMQTTSubscriber:
     def process_status_message(self, data: Dict[str, Any], topic: str) -> bool:
         """Process status message."""
         device_id = data.get('device_id', 'unknown_device')
-        logging.info(f"📊 Status from {device_id}: {data.get('status')} - {data.get('message', '')}")
+        logger.info(f"STATUS_MSG: Device {device_id}: {data.get('status')} - {data.get('message', '')}")
         return self.db_handler.insert_sensor_data(data, topic, device_id)
     
     def process_individual_sensor(self, data: Dict[str, Any], topic: str) -> bool:
@@ -438,21 +547,21 @@ class VFlowMQTTSubscriber:
     
     def start(self):
         """Start the MQTT subscriber."""
-        logging.info("🚀 Starting VFlow MQTT Subscriber...")
+        logger.info("SUBSCRIBER_STARTING: Starting VFlow MQTT Subscriber...")
         
         # Step 1: Ensure the database exists
         if not self.db_handler.ensure_database_exists():
-            logging.error(f"❌ Database '{self.db_handler.target_database_name}' does not exist and could not be created. Please check permissions or create it manually. Exiting.")
+            logger.error(f"SUBSCRIBER_FAIL: DB '{self.db_handler.target_database_name}' not ensured. Exiting.")
             return False # Stop if database cannot be ensured
 
         # Step 2: Connect to the target database
         if not self.db_handler.connect():
-            logging.error(f"❌ Failed to connect to database '{self.db_handler.target_database_name}'. Exiting.")
+            logger.error(f"SUBSCRIBER_FAIL: DB connect to '{self.db_handler.target_database_name}' failed. Exiting.")
             return False
         
         # Step 3: Create database table in the target database
         if not self.db_handler.create_table_if_not_exists():
-            logging.error(f"❌ Failed to create database table '{self.db_handler.table_name}'. Exiting.")
+            logger.error(f"SUBSCRIBER_FAIL: Table '{self.db_handler.table_name}' creation failed. Exiting.")
             self.db_handler.disconnect() # Disconnect if table creation failed
             return False
         
@@ -466,19 +575,19 @@ class VFlowMQTTSubscriber:
             self.running = True
             self.stats['start_time'] = datetime.now()
             
-            logging.info("🎉 VFlow MQTT Subscriber started successfully!")
-            logging.info("📊 Press Ctrl+C to stop the subscriber")
+            logger.info("SUBSCRIBER_STARTED: VFlow MQTT Subscriber started successfully!")
+            logger.info("Press Ctrl+C to stop the subscriber")
             
             return True
             
         except Exception as e:
-            logging.error(f"❌ Failed to start MQTT client: {e}")
+            logger.error(f"MQTT_CLIENT_START_FAIL: {e}")
             self.db_handler.disconnect() # Ensure DB is disconnected on MQTT start failure
             return False
     
     def stop(self):
         """Stop the MQTT subscriber."""
-        logging.info("🛑 Stopping VFlow MQTT Subscriber...")
+        logger.info("SUBSCRIBER_STOPPING: Stopping VFlow MQTT Subscriber...")
         
         self.running = False
         
@@ -491,7 +600,7 @@ class VFlowMQTTSubscriber:
         # Print statistics
         self.print_statistics()
         
-        logging.info("👋 VFlow MQTT Subscriber stopped")
+        logger.info("SUBSCRIBER_STOPPED: VFlow MQTT Subscriber stopped")
     
     def print_statistics(self):
         """Print subscriber statistics."""
@@ -523,12 +632,12 @@ class VFlowMQTTSubscriber:
                 if self.stats['start_time']:
                     runtime = datetime.now() - self.stats['start_time']
                     if runtime.total_seconds() % 300 < 1:  # Every 5 minutes
-                        logging.info(f"📊 Runtime: {runtime}, Messages: {self.stats['messages_received']}, Stored: {self.stats['data_points_stored']}")
+                        logger.info(f"STATS_UPDATE: Runtime: {runtime}, Messages: {self.stats['messages_received']}, Stored: {self.stats['data_points_stored']}")
         
         except KeyboardInterrupt:
-            logging.info("⚠️ Keyboard interrupt received")
+            logger.info("⚠️ Keyboard interrupt received")
         except Exception as e:
-            logging.error(f"❌ Unexpected error: {e}")
+            logger.error(f"UNEXPECTED_RUNTIME_ERR: {e}")
         finally:
             self.stop()
 
@@ -544,12 +653,21 @@ def setup_logging():
         handlers=[
             logging.StreamHandler(sys.stdout),
             logging.FileHandler('vflow_mqtt_subscriber.log')
-        ]
+        ],
+        encoding='utf-8'
     )
+    # For Windows console, explicitly set encoding for stdout if possible
+    if sys.stdout.encoding != 'utf-8':
+        try:
+            sys.stdout.reconfigure(encoding='utf-8')
+            sys.stderr.reconfigure(encoding='utf-8')
+            logger.info("stdout/stderr reconfigured to UTF-8 for logging.")
+        except Exception as e:
+            print(f"WARNING: Could not reconfigure stdout/stderr to UTF-8: {e}")
 
 def signal_handler(signum, frame):
     """Handle system signals for graceful shutdown."""
-    logging.info(f"🔔 Received signal {signum}")
+    logger.info(f"SIGNAL_RECEIVED: Signal {signum}")
     global subscriber
     if subscriber:
         subscriber.running = False
@@ -567,10 +685,10 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
     
     # Display configuration
-    print(f"MQTT Broker: {os.getenv('MQTT_BROKER_HOST', 'localhost')}:{os.getenv('MQTT_BROKER_PORT', '1883')}")
-    print(f"PostgreSQL: {os.getenv('POSTGRES_HOST', 'localhost')}:{os.getenv('POSTGRES_PORT', '5432')}")
-    print(f"Database: {os.getenv('POSTGRES_DATABASE', 'vflow_data')}")
-    print(f"Table: {os.getenv('POSTGRES_TABLE', 'sensor_data')}")
+    print(f"INFO: MQTT Broker: {os.getenv('MQTT_BROKER_HOST', 'localhost')}:{os.getenv('MQTT_BROKER_PORT', '1883')}")
+    print(f"INFO: PostgreSQL: {os.getenv('POSTGRES_HOST', 'localhost')}:{os.getenv('POSTGRES_PORT', '5432')}")
+    print(f"INFO: Database: {os.getenv('POSTGRES_DATABASE', 'sensor_data')}")
+    print(f"INFO: Table: {os.getenv('POSTGRES_TABLE', 'sensor_data')}")
     print("=" * 60)
     
     # Create and run subscriber

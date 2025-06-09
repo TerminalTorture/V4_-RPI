@@ -80,21 +80,30 @@ function createSocMeter(canvasId, socName, label) {
 function updateSocMeterDisplay(socName, value, unit = '%') {
     const chart = window.socChartInstances[socName];
     const numericValue = parseFloat(value); // Ensure value is a number
-    if (chart) {
+
+    if (!chart) {
+        console.warn(`[Live Data] SOC chart instance for '${socName}' not found.`);
+        // Attempt to find the canvas to see if it was ever created
+        if (!document.getElementById(`${socName}_SocCanvas`)) {
+            console.warn(`[Live Data] Canvas element '${socName}_SocCanvas' also not found for SOC meter '${socName}'.`);
+        }
+    } else {
         if (typeof numericValue === 'number' && !isNaN(numericValue)) {
             chart.data.datasets[0].data[0] = numericValue;
             chart.data.datasets[0].data[1] = 100 - numericValue; // Assuming 100 is max
             chart.update('none'); // 'none' for no animation, efficient for frequent updates
         } else {
             // console.warn(`Invalid value for SOC meter ${socName}: ${value}`);
-            // Optionally set to a default error state, e.g., 0
             chart.data.datasets[0].data[0] = 0;
             chart.data.datasets[0].data[1] = 100;
             chart.update('none');
         }
     }
+
     const textElement = document.getElementById(`${socName}_SocValueText`);
-    if (textElement) {
+    if (!textElement) {
+        console.warn(`[Live Data] Text element '${socName}_SocValueText' not found for SOC meter '${socName}'.`);
+    } else {
         if (typeof numericValue === 'number' && !isNaN(numericValue)) {
             textElement.textContent = `${numericValue.toFixed(1)}${unit}`;
         } else {
@@ -106,6 +115,10 @@ function updateSocMeterDisplay(socName, value, unit = '%') {
 // Function to update an individual display value card
 function updateDisplayValue(elementId, value, unit = '', scale = 1, defaultDecimals = 2) {
     const displayElement = document.getElementById(elementId);
+    if (!displayElement) {
+        console.warn(`[Live Data] UI element with ID '${elementId}' not found for display_value update.`);
+        return;
+    }
     if (displayElement) {
         const numericValue = parseFloat(value);
         if (value !== undefined && value !== null && !isNaN(numericValue)) {
@@ -133,9 +146,13 @@ function updateStatusDisplayCard(regName, rawValue, statusMapping, label) {
     let card = document.getElementById(cardId);
     let valueElement = document.getElementById(valueElementId);
 
-    if (!card) return; // Card should have been created already
+    if (!card) {
+        console.warn(`[Live Data] Status card element with ID '${cardId}' not found for status_display '${regName}'.`);
+        return;
+    }
     if (!valueElement) {
-        console.warn(`Value element ${valueElementId} not found for status display ${regName}`);
+        console.warn(`[Live Data] Value element with ID '${valueElementId}' not found for status_display '${regName}'.`);
+        // Card might exist, but value part is missing. Still, can't update.
         return;
     }
 
@@ -166,9 +183,13 @@ function updateBitmaskDisplayCard(regName, rawValue, bitMapping, label) {
     let card = document.getElementById(cardId);
     let bitValuesContainer = document.getElementById(containerId);
 
-    if (!card) return; // Card should have been created already
+    if (!card) {
+        console.warn(`[Live Data] Bitmask card element with ID '${cardId}' not found for bitmask_display '${regName}'.`);
+        return;
+    }
     if (!bitValuesContainer) {
-        console.warn(`Bit values container ${containerId} not found for bitmask display ${regName}`);
+        console.warn(`[Live Data] Bit values container with ID '${containerId}' not found for bitmask_display '${regName}'.`);
+        // Card might exist, but container part is missing. Still, can't update.
         return;
     }
 
@@ -278,26 +299,16 @@ function fetchAllLiveDataAndUpdateDisplays() {
 
             allRegisterConfigs.forEach(reg => {
                 // MODIFIED: Robust check for 'live' view (string or array)
-                if (!reg.ui || !reg.ui.view) return;
-                let isLiveView = false;
+                if (!reg.ui || !reg.ui.view) return; // Skip if no ui or view defined
+
+                let shouldProcessForLiveView = false;
                 if (Array.isArray(reg.ui.view)) {
-                    isLiveView = reg.ui.view.includes('live');
+                    shouldProcessForLiveView = reg.ui.view.includes('live');
                 } else if (typeof reg.ui.view === 'string') {
-                    isLiveView = reg.ui.view === 'live';
+                    shouldProcessForLiveView = reg.ui.view === 'live';
                 }
-                // Ensure we only process registers intended for the live view if that's the established pattern
-                if (!isLiveView && Array.isArray(reg.ui.view) && reg.ui.view.length > 0) { 
-                    let hasLiveView = false;
-                    for(let v of reg.ui.view){
-                        if(v === 'live'){
-                            hasLiveView = true;
-                            break;
-                        }
-                    }
-                    if(!hasLiveView) return;
-                } else if (!isLiveView && typeof reg.ui.view === 'string' && reg.ui.view !== 'live') {
-                     return; 
-                }
+
+                if (!shouldProcessForLiveView) return; // Skip if not for live view
 
                 // Access sensor values from the nested data.data object
                 const value = data.data ? data.data[reg.name] : undefined;
@@ -308,7 +319,12 @@ function fetchAllLiveDataAndUpdateDisplays() {
                 const decimals = reg.ui.decimals !== undefined ? reg.ui.decimals : ((reg.scale && reg.scale.toString().includes('.')) ? reg.scale.toString().split('.')[1].length : 2); // Use reg.scale for decimals calculation if needed, but not for scaling value
 
                 if (value === undefined) {
-                    // console.warn(`No data received for register: ${reg.name} in data.data object`);
+                    // Enhanced logging for missing data keys
+                    if (data.data) {
+                        console.warn(`[Live Data] No data received for register: '${reg.name}'. Available keys in API's 'data' object: [${Object.keys(data.data).join(', ')}]`);
+                    } else {
+                        console.warn(`[Live Data] No data received for register: '${reg.name}'. The API response did not contain a 'data' object or it was undefined.`);
+                    }
                 }
 
                 const components = Array.isArray(reg.ui.component) ? reg.ui.component : [reg.ui.component];
@@ -318,50 +334,50 @@ function fetchAllLiveDataAndUpdateDisplays() {
                         updateSocMeterDisplay(reg.name, value, unit);
                     } else if (componentType === 'line_chart') {
                         const mapping = window.registerDatasetMapping[reg.name];
-                        if (mapping) {
+                        if (!mapping) {
+                            console.warn(`[Live Data] No dataset mapping found for line chart register: '${reg.name}'. Ensure it was configured for live view and UI created.`);
+                        } else if (!mapping.chart) {
+                            console.warn(`[Live Data] Chart instance is missing in dataset mapping for line chart register: '${reg.name}'.`);
+                        } else if (!mapping.chart.data.datasets[mapping.datasetIndex]) {
+                            console.warn(`[Live Data] Target dataset (index: ${mapping.datasetIndex}) not found in chart for line chart register: '${reg.name}'. Chart has ${mapping.chart.data.datasets.length} datasets.`);
+                        } else {
                             const chartToUpdate = mapping.chart;
                             const datasetToUpdateIndex = mapping.datasetIndex;
                             const targetDataset = chartToUpdate.data.datasets[datasetToUpdateIndex];
 
-                            if (targetDataset) {
+                            // This check is technically redundant if the above checks pass, but good for explicitness.
+                            // if (targetDataset) { // Already covered by checks above
                                 const numericValue = parseFloat(value);
                                 if (!isNaN(numericValue)) {
                                     const scaledValue = numericValue * scale;
-                                    // Use the validated common timestamp for the new data point
-                                    const newPointTimestamp = commonTimestampForPacket; 
+                                    const newPointTimestamp = commonTimestampForPacket;
 
                                     targetDataset.data.push({ x: newPointTimestamp, y: scaledValue });
-                                    
+
                                     const fifteenMinutesInMillis = INITIAL_HISTORY_MINUTES * 60 * 1000;
-                                    // Ensure newPointTimestamp.getTime() is valid for this calculation
                                     const windowStartTimeLimit = newPointTimestamp.getTime() - fifteenMinutesInMillis;
 
-                                    // Prune old data points to maintain the 15-minute window
                                     while (
                                         targetDataset.data.length > 0 &&
-                                        targetDataset.data[0].x && // Ensure x exists
-                                        typeof targetDataset.data[0].x.getTime === 'function' && // Ensure x is a Date-like object
-                                        !isNaN(targetDataset.data[0].x.getTime()) && // Ensure x.getTime() is not NaN
+                                        targetDataset.data[0].x &&
+                                        typeof targetDataset.data[0].x.getTime === 'function' &&
+                                        !isNaN(targetDataset.data[0].x.getTime()) &&
                                         targetDataset.data[0].x.getTime() < windowStartTimeLimit
                                     ) {
                                         targetDataset.data.shift();
                                     }
 
-                                    // Fallback: Ensure we don't exceed MAX_DATA_POINTS if data is extremely dense
                                     while (targetDataset.data.length > MAX_DATA_POINTS) {
                                         targetDataset.data.shift();
                                     }
-                                    
-                                    chartsNeedingUpdate.add(chartToUpdate); // Add chart to the set for a single update later
+
+                                    chartsNeedingUpdate.add(chartToUpdate);
                                 } else {
                                     // console.warn(`Invalid data for line chart dataset ${reg.name}: ${value}`);
                                 }
-                                // chartToUpdate.update('none'); // REMOVED: Will update once per chart after all datasets are processed
-                            } else {
-                                console.error(`Dataset not found for ${reg.name} at index ${datasetToUpdateIndex} in chart for group ${reg.group}`);
-                            }
-                        } else {
-                            // console.warn(`No dataset mapping found for register: ${reg.name}.`);
+                            // } else { // Should not be reached if above checks are in place
+                            //     console.error(`Dataset not found for ${reg.name} at index ${datasetToUpdateIndex} in chart for group ${reg.group}`);
+                            // }
                         }
                     } else if (componentType === 'display_value') {
                         const elementId = `${reg.name}_DisplayValue`;
@@ -658,14 +674,16 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         allRegisterConfigs.forEach(reg => {
             // MODIFIED: Robust check for 'live' view (string or array)
-            if (!reg.ui || !reg.ui.view) return;
-            let isLiveView = false;
+            if (!reg.ui || !reg.ui.view) return; // Skip if no ui or view defined
+
+            let shouldProcessForLiveView = false;
             if (Array.isArray(reg.ui.view)) {
-                if (reg.ui.view.includes('live')) isLiveView = true;
-            } else if (typeof reg.ui.view === 'string' && reg.ui.view === 'live') {
-                isLiveView = true;
+                shouldProcessForLiveView = reg.ui.view.includes('live');
+            } else if (typeof reg.ui.view === 'string') {
+                shouldProcessForLiveView = reg.ui.view === 'live';
             }
-            if (!isLiveView) return; // Skip if not explicitly for live view
+
+            if (!shouldProcessForLiveView) return; // Skip if not for live view
 
             const components = Array.isArray(reg.ui.component) ? reg.ui.component : [reg.ui.component];
             const displayName = reg.ui.label || reg.name;

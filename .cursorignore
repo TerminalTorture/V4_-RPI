@@ -1,0 +1,5 @@
+add .cursorignore file with content as
+
+!.env
+
+!.env.local

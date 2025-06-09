@@ -34,6 +34,9 @@ import logging # Add logging import
 import yaml # Add this import
 import psycopg2 # Added for psycopg2 usage
 
+# Import the MQTT Subscriber class
+from api.mqtt_subscriber import VFlowMQTTSubscriber
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_secret_key'
 
@@ -186,6 +189,19 @@ with app.app_context():
              logging.info(f"Admin user '{admin_username}' already exists or is same as default user.")
 
 
+# Function to run the MQTT subscriber
+def run_mqtt_subscriber():
+    logging.info("Attempting to start MQTT subscriber in a background thread...")
+    try:
+        # The VFlowMQTTSubscriber setup logging internally and also prints initial config.
+        # We don't need to call setup_logging() from mqtt_subscriber here again.
+        subscriber = VFlowMQTTSubscriber()
+        subscriber.run_forever() # This will block until KeyboardInterrupt or error within the subscriber
+    except Exception as e:
+        logging.error(f"Exception in MQTT subscriber thread: {e}", exc_info=True)
+    logging.info("MQTT subscriber thread finished.")
+
+
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static', 'images'),
@@ -293,9 +309,17 @@ if __name__ == '__main__':
     load_dotenv()
     
     start_scheduler() # Starts the 'delete_old_data' job
+
+    # Start the MQTT subscriber in a background thread
+    logging.info("Creating MQTT subscriber thread...")
+    mqtt_thread = threading.Thread(target=run_mqtt_subscriber, name="MQTTSubscriberThread")
+    mqtt_thread.daemon = True  # Allow main program to exit even if this thread is still running
+    mqtt_thread.start()
+    logging.info("MQTT subscriber thread started.")
+
     # Use host='0.0.0.0' to make it accessible on the network
     # Use a different port if 5000 is used by something else (like the MQTT subscriber)
     app_port = int(os.getenv('FLASK_RUN_PORT', 5001))
-    app.run(debug=True, host=os.getenv('FLASK_RUN_HOST', '0.0.0.0'), port=app_port)
+    app.run(debug=True, host=os.getenv('FLASK_RUN_HOST', '0.0.0.0'), port=app_port, use_reloader=False)
 
 
