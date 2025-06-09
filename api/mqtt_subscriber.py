@@ -198,6 +198,47 @@ class PostgreSQLHandler:
                 self.connection.commit()
             
             logger.info(f"TABLE_CREATE_SUCCESS: Table '{self.table_name}' created/verified in '{self.target_database_name}'")
+
+            # --- Add missing columns and ensure indexes exist ---
+            columns_to_ensure = {
+                "device_id": ("VARCHAR(100)", f"CREATE INDEX IF NOT EXISTS idx_{self.table_name}_device_id ON {self.table_name} (device_id);"),
+                "topic": ("VARCHAR(200)", f"CREATE INDEX IF NOT EXISTS idx_{self.table_name}_topic ON {self.table_name} (topic);")
+            }
+
+            for col_name, (col_type, create_index_sql) in columns_to_ensure.items():
+                self.cursor.execute(f"""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_schema = 'public' AND table_name = %s AND column_name = %s;
+                """, (self.table_name, col_name))
+                if not self.cursor.fetchone():
+                    logger.info(f"Column '{col_name}' not found in table '{self.table_name}'. Attempting to add it.")
+                    self.cursor.execute(f"ALTER TABLE {self.table_name} ADD COLUMN {col_name} {col_type};")
+                    logger.info(f"Column '{col_name}' added. Ensuring index exists.")
+                    self.cursor.execute(create_index_sql)
+                    if not self.connection.autocommit: self.connection.commit()
+                    logger.info(f"Index for column '{col_name}' ensured.")
+                else:
+                    logger.debug(f"Column '{col_name}' already exists. Ensuring index exists.")
+                    self.cursor.execute(create_index_sql) # Ensure index exists even if column was already there
+                    if not self.connection.autocommit: self.connection.commit() # Commit index creation if necessary
+                    logger.debug(f"Index for column '{col_name}' ensured.")
+            
+            # Ensure GIN index on raw_data is present
+            gin_index_name = f'idx_{self.table_name}_raw_data'
+            self.cursor.execute(f"""
+                SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+                WHERE c.relname = %s AND n.nspname = 'public';
+            """, (gin_index_name,))
+            if not self.cursor.fetchone():
+                logger.info(f"GIN index '{gin_index_name}' on 'raw_data' column not found. Attempting to create.")
+                self.cursor.execute(f"CREATE INDEX IF NOT EXISTS {gin_index_name} ON {self.table_name} USING GIN (raw_data);")
+                if not self.connection.autocommit: self.connection.commit()
+                logger.info(f"GIN index '{gin_index_name}' for 'raw_data' ensured.")
+            else:
+                logger.debug(f"GIN index '{gin_index_name}' for 'raw_data' already exists.")
+            # --- End Add missing columns and ensure indexes ---
+
             return True
             
         except psycopg2.Error as e:
