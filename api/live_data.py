@@ -45,7 +45,7 @@ from api.timezone_config import set_timezone
 POSTGRES_CONFIG = {
     'host': os.getenv('POSTGRES_HOST', 'localhost'),
     'port': int(os.getenv('POSTGRES_PORT', '5432')),
-    'database': os.getenv('POSTGRES_DATABASE', 'sensor_data_rpi'), # Corrected default DB name
+    'database': os.getenv('POSTGRES_DATABASE', 'sensor_data'), # Default to 'sensor_data' for consistency
     'user': os.getenv('POSTGRES_USER', 'sensor_user'),         # Default to sensor_user
     'password': os.getenv('POSTGRES_PASSWORD', 'Master123')   # Default to Master123
 }
@@ -123,26 +123,73 @@ def parse_mqtt_data(raw_data_json):
 
 @live_data_api.route('/live-data', methods=['POST'])
 def receive_live_data():
-    """Receive live data from MQTT subscriber and update cache"""
+    """Receive live data from MQTT subscriber, update cache, and store in PostgreSQL"""
     global latest_live_data
     try:
         data = request.get_json()
         if not data:
+            logging.warning("POST /api/live-data: No JSON payload received.")
             return jsonify({"error": "No JSON payload received"}), 400
 
-        # Add a timestamp for when we received it
-        # The payload from mqtt_minimal.py already contains 'timestamp', 'device_id', and 'data'
-        # We will store it directly.
-        latest_live_data = data
-        latest_live_data['received_at'] = datetime.now(timezone.utc).isoformat() # Add server-side received timestamp
+        # Update in-memory cache (optional, but can be useful for immediate live view)
+        latest_live_data = data.copy() # Use .copy() to avoid modifying the original if adding 'received_at' only to cache
+        latest_live_data['received_at_server'] = datetime.now(timezone.utc).isoformat() 
 
-        # For now, we just update the cache. Database saving can be added later if needed here.
-        # If subscriber_workflow dictates saving to DB, that logic would go here or be triggered.
+        logging.info(f"POST /api/live-data: Data received: {data.get('device_id', 'unknown_device')}, Timestamp: {data.get('timestamp', 'N/A')}")
+
+        # --- Store data in PostgreSQL ---
+        conn = None
+        cursor = None
+        try:
+            conn = get_postgres_connection()
+            if conn:
+                cursor = conn.cursor()
+                
+                db_timestamp = data.get('timestamp')
+                db_device_id = data.get('device_id')
+                
+                # Ensure raw_data is stored as a JSON string
+                db_raw_data_json = json.dumps(data) 
+
+                if db_timestamp and db_device_id:
+                    insert_query = f"""
+                    INSERT INTO {POSTGRES_TABLE} (timestamp, device_id, raw_data)
+                    VALUES (%s, %s, %s)
+                    -- ON CONFLICT (timestamp, device_id) DO NOTHING; 
+                    """ 
+                    # The ON CONFLICT clause is commented out because the table may not have the required unique constraint.
+                    # This might lead to duplicate entries if source data contains them or if messages are replayed.
+                    
+                    cursor.execute(insert_query, (db_timestamp, db_device_id, db_raw_data_json))
+                    conn.commit()
+                    logging.info(f"✅ Data from {db_device_id} at {db_timestamp} stored in PostgreSQL table {POSTGRES_TABLE}.")
+                else:
+                    logging.warning(f"⚠️ Missing 'timestamp' or 'device_id' in received data. Payload: {data}. Data not stored in DB.")
+            else:
+                logging.error("❌ Failed to get PostgreSQL connection for data insertion. Data not stored.")
         
-        logging.info(f"✅ POST /api/live-data: Data received and cached: {data.get('device_id', 'unknown_device')}")
-        return jsonify({"message": "Data received successfully"}), 200
-    except Exception as e:
-        logging.error(f"❌ Error in POST /api/live-data: {e}")
+        except psycopg2.Error as db_err:
+            if conn:
+                conn.rollback()
+            logging.error(f"❌ PostgreSQL Error during data insertion into {POSTGRES_TABLE}: {db_err}. Payload: {data}")
+            # Optionally, you might want to return 500 if DB storage is critical
+            # return jsonify({"error": "Failed to store data in database"}), 500
+        except Exception as e_db:
+            if conn:
+                conn.rollback()
+            logging.error(f"❌ Unexpected error during data insertion into {POSTGRES_TABLE}: {e_db}. Payload: {data}")
+            # return jsonify({"error": "Internal server error during data storage"}), 500
+        finally:
+            if cursor:
+                cursor.close()
+            if conn:
+                conn.close()
+        # --- End DB Insertion ---
+
+        return jsonify({"message": "Data received and processed"}), 200 # Changed message to reflect processing
+
+    except Exception as e_main:
+        logging.error(f"❌ Error in POST /api/live-data main try block: {e_main}")
         return jsonify({"error": "Failed to process request"}), 500
 
 
