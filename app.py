@@ -57,7 +57,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # logging.getLogger('werkzeug').disabled = True # Consider enabling werkzeug logs for debugging
 
 # Setup logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 # Initialize extensions
@@ -95,7 +95,7 @@ class User (UserMixin, db.Model): # User model remains for authentication
 
 @login_manager.user_loader
 def load_user (user_id):
-    return User.query.get(int(user_id)) # Keep for user authentication
+    return db.session.get(User, int(user_id)) # Keep for user authentication
 
 
 # SensorData model, collect_sensor_data, and related lock are removed

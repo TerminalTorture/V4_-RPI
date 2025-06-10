@@ -45,11 +45,11 @@ from api.timezone_config import set_timezone
 POSTGRES_CONFIG = {
     'host': os.getenv('POSTGRES_HOST', 'localhost'),
     'port': int(os.getenv('POSTGRES_PORT', '5432')),
-    'database': os.getenv('POSTGRES_DATABASE', 'sensor_data'), # Default to 'sensor_data' for consistency
+    'database': os.getenv('POSTGRES_DATABASE', 'sensor_data_rpi'), # Default to 'sensor_data_rpi' for consistency
     'user': os.getenv('POSTGRES_USER', 'sensor_user'),         # Default to sensor_user
     'password': os.getenv('POSTGRES_PASSWORD', 'Master123')   # Default to Master123
 }
-POSTGRES_TABLE = os.getenv('POSTGRES_TABLE', 'sensor_data')
+POSTGRES_TABLE = os.getenv('POSTGRES_TABLE', 'sensor_data_rpi')
 
 # Define Blueprint
 live_data_api = Blueprint('live_data_api', __name__)
@@ -61,15 +61,10 @@ latest_live_data = None
 def get_postgres_connection():
     """Get PostgreSQL connection"""
     try:
-        # Ensure the database name here matches your intended target, e.g., sensor_data_rpi
-        current_config = POSTGRES_CONFIG.copy()
-        # If POSTGRES_DATABASE from .env is different from the default in POSTGRES_CONFIG,
-        # load_dotenv should have overridden it. This just ensures clarity.
-        current_config['database'] = os.getenv('POSTGRES_DATABASE', 'sensor_data_rpi') 
-        connection = psycopg2.connect(**current_config)
+        connection = psycopg2.connect(**POSTGRES_CONFIG)
         return connection
     except psycopg2.Error as e:
-        logging.error(f"❌ Failed to connect to PostgreSQL (DB: {current_config.get('database')}): {e}")
+        logging.error(f"❌ Failed to connect to PostgreSQL (DB: {POSTGRES_CONFIG.get('database')}): {e}")
         return None
 
 # Helper function to parse MQTT JSON data structure
