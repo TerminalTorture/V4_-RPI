@@ -54,6 +54,9 @@ POSTGRES_TABLE = os.getenv('POSTGRES_TABLE', 'sensor_data')
 # Define Blueprint
 live_data_api = Blueprint('live_data_api', __name__)
 
+# Global variable to store the latest live data received via POST
+latest_live_data = None
+
 # PostgreSQL connection helper
 def get_postgres_connection():
     """Get PostgreSQL connection"""
@@ -118,9 +121,50 @@ def parse_mqtt_data(raw_data_json):
         return None
 
 
+@live_data_api.route('/live-data', methods=['POST'])
+def receive_live_data():
+    """Receive live data from MQTT subscriber and update cache"""
+    global latest_live_data
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON payload received"}), 400
+
+        # Add a timestamp for when we received it
+        # The payload from mqtt_minimal.py already contains 'timestamp', 'device_id', and 'data'
+        # We will store it directly.
+        latest_live_data = data
+        latest_live_data['received_at'] = datetime.now(timezone.utc).isoformat() # Add server-side received timestamp
+
+        # For now, we just update the cache. Database saving can be added later if needed here.
+        # If subscriber_workflow dictates saving to DB, that logic would go here or be triggered.
+        
+        logging.info(f"✅ POST /api/live-data: Data received and cached: {data.get('device_id', 'unknown_device')}")
+        return jsonify({"message": "Data received successfully"}), 200
+    except Exception as e:
+        logging.error(f"❌ Error in POST /api/live-data: {e}")
+        return jsonify({"error": "Failed to process request"}), 500
+
+
 @live_data_api.route('/live-data', methods=['GET'])
 def live_data():
-    """Get the latest sensor data from PostgreSQL database"""
+    """Get the latest sensor data - prioritize live cache, fallback to PostgreSQL database"""
+    
+    # Check if we have fresh live data from MQTT subscriber (within last 30 seconds)
+    global latest_live_data
+    if latest_live_data:
+        try:
+            received_at = datetime.fromisoformat(latest_live_data['received_at'].replace('Z', '+00:00'))
+            age_seconds = (datetime.now(timezone.utc) - received_at).total_seconds()
+            
+            if age_seconds < 30:  # Use live data if less than 30 seconds old
+                logging.debug("✅ Returning fresh live data from cache")
+                return jsonify(latest_live_data)
+        except Exception as e:
+            logging.warning(f"⚠️ Error checking live data age: {e}")
+    
+    # Fallback to database if no fresh live data
+    logging.debug("📊 Falling back to database for live data")
     connection = get_postgres_connection()
     cursor = None # Initialize cursor to None for finally block
 

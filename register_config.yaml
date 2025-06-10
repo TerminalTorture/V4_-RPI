@@ -748,3 +748,7 @@ registers:
       '11':
         '0': Live Bit (State 0)
         '1': Live Bit (State 1)
+
+subscriber_workflow:
+  publish_to_flask_api: true
+  save_to_db: true
